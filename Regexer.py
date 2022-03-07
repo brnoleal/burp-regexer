@@ -34,8 +34,9 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         # define our extension name
         callbacks.setExtensionName("Regexer")
 
-        # create the log and a lock on which to synchronize when adding log entries
+        # create the log, regex and a lock on which to synchronize when adding log entries
         self._log = ArrayList()
+        self._regex = ArrayList()
         self._lock = Lock()
 
         # history tab split pane
@@ -53,19 +54,30 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         tabs.addTab("Request", self._requestViewer.getComponent())
         tabs.addTab("Response", self._responseViewer.getComponent())
         splitpane.setRightComponent(tabs)
-
-        # main tabs 
-        self._tabs = JTabbedPane()
         
         # regex tab panel
-        box = Box.createHorizontalBox()
-        box.add(JLabel("Regular Expression"))
+        panel = JPanel(BorderLayout())
+        
+        box = Box.createHorizontalBox() 
+        box.add(JLabel("Regular Expression: "))
         box.add(JTextField(100, actionPerformed=self.updateRegex))
         box.add(JButton("Update", actionPerformed=self.updateRegex))
         box.add(JButton("?", actionPerformed=self.help))
-
-        panel = JPanel(BorderLayout())
+        
         panel.add(box, BorderLayout.NORTH)
+
+        box = Box.createHorizontalBox() 
+        self._regex.add([1, "Issue1", "Severity1"])
+        self._regex.add([2, "Issue2", "Severity2"])
+        self._regex.add([3, "Issue3", "Severity3"])
+        self._tableHeadings = ["#", "Rule Name", "Regular Expression"]
+        self._regexTable = JTable(self._regex, self._tableHeadings)
+        regexScrollPane = JScrollPane(self._regexTable)
+        
+        panel.add(regexScrollPane, BorderLayout.CENTER)
+
+        # main tabs 
+        self._tabs = JTabbedPane()
         self._tabs.addTab("History", splitpane)
         self._tabs.addTab("Regex", panel)
 
@@ -93,6 +105,11 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
 
     def getUiComponent(self):
         return self._tabs
+
+    #
+    # implement ITextEditor
+    #
+
 
     #
     # implement IHttpListener
@@ -144,6 +161,8 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
 
     def updateRegex(self, event):
         print("UPDATE REGEX")
+        self._regex.add([4, "Issue4", "Severity4"])
+        print(self._regex)
 
     def help(self, event):
         JOptionPane.showMessageDialog(None, "All matching subgroups will also be extracted.")
