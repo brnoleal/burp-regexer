@@ -15,6 +15,7 @@ from javax.swing import UnsupportedLookAndFeelException
 from javax.swing import JButton
 from javax.swing import JFrame
 from javax.swing import JLabel
+from javax.swing import JOptionPane
 from javax.swing import JPanel
 from javax.swing import JScrollPane
 from javax.swing import JTable
@@ -46,7 +47,6 @@ class BurpExtender(IBurpExtender, ITab):
         return "RegexerGUI"
 
     def getUiComponent(self):
-        # # setting up the table
         tableData = [
             [1, "1st rule", "://"],
             [2, "2nd rule", "url="],
@@ -64,30 +64,15 @@ class BurpExtender(IBurpExtender, ITab):
 class RegexerGUI(JFrame):
 
     def __init__(self, data, columns):
-
-        # define variables
         self.jScrollPane1 = JScrollPane()
         self.jTableRegex = JTable()
         self.jButtonAdd = JButton("Add", actionPerformed=self.handleJButtonAdd)
         self.jButtonRemove = JButton("Remove", actionPerformed=self.handleJButtonRemove)
         self.jButtonEdit = JButton("Edit", actionPerformed=self.handleJButtonEdit)
 
-        # setting up the table
-        # self.tableData = [
-        #     [1, "1st rule", "://"],
-        #     [2, "2nd rule", "url="],
-        #     [3, "3rd rule", "<a link="]
-        # ]
-        # self.tableColumns = ["#", "Rule Name", "Regex Rule"]
-
-        # set the table model
         self.jTableRegex = RegexTable(data, columns)
-        # self.jTableRegex = RegexTable(self.tableData, self.tableColumns)
-
-        # wrap the table in a scrollpane
         self.jScrollPane1.setViewportView(self.jTableRegex)
 
-        # layout of GUI
         self.panel = JPanel()
         layout = GroupLayout(self.panel)
         self.panel.setLayout(layout)
@@ -123,6 +108,9 @@ class RegexerGUI(JFrame):
         regexerGUIEdit.show()
 
     def handleJButtonRemove(self, event):
+        if(self.jTableRegex.getSelectedRow() != -1):
+            self.jTableRegex.removeRow(self.jTableRegex.getSelectedRow())
+            JOptionPane.showMessageDialog(None, "Selected row deleted successfully")
         print("Button '{}' clicked".format(event.source.text))
 
     def handleJButtonEdit(self, event):
@@ -199,33 +187,14 @@ class RegexerGUIEdit(JFrame):
                 .addContainerGap(GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         )
 
+    def addRegex(self, event):
+        lastIndex = self.jTableRegex.getValueAt(self.jTableRegex.getRowCount()-1, 0)
+        self.jTableRegex.addRow([lastIndex + 1, self.jTextFieldRuleName.getText(), self.jTextFieldRegex.getText()])
+        print(self.jTableRegex.getModel().getDataVector())
+        self.dispose()
+
     def closeRegexerGUIEdit(self, event):
         self.dispose()
-
-    def addRegex(self, event):
-        
-        # last row
-        lastIndex = self.jTableRegex.getValueAt(self.jTableRegex.getRowCount()-1, 0)
-        print("Last Index: {}\tRule name: {}\tRegex: {}".format(lastIndex, self.jTextFieldRuleName.getText(), self.jTextFieldRegex.getText()))
-
-        # regexerGUI.tableData.append([lastIndex + 1, self.jTextFieldRuleName.getText(), self.jTextFieldRegex.getText()])
-        self.jTableRegex.getModel().addRow([lastIndex + 1, self.jTextFieldRuleName.getText(), self.jTextFieldRegex.getText()])
-
-        # regexerGUI.jTableRegex.repaint()
-        # regexerGUI.jScrollPane1.repaint()
-
-        print(self.jTableRegex.getModel().getDataVector())
-        # print(regexerGUI.tableData)
-        # for row in range(0, regexerGUI.jTableRegex.getRowCount()):
-            # for column in range(0, regexerGUI.jTableRegex.getColumnCount()):
-                # print(regexerGUI.jTableRegex.getValueAt(row, column))
-
-        # regexerGUI.jTableRegex.setModel(regexerGUI.jTableRegex.getModel())
-        # regexerGUI.jTableRegex.updateUI()
-        # regexerGUI.jTableRegex.revalidate()
-        self.jTableRegex.getModel().fireTableDataChanged();
-        self.dispose()
-
 
 
 class RegexTableModel(DefaultTableModel):
@@ -287,6 +256,9 @@ class RegexTable(JTable):
 
     def addRow(self, data):
         self.getModel().addRow(data)
+
+    def removeRow(self, row):
+        self.getModel().removeRow(row)
 
 
 # support for burp-exceptions
