@@ -103,7 +103,12 @@ class RegexerGUI(JFrame):
         )             
 
     def handleJButtonAdd(self, event):
-        regexerGUIEdit = RegexerGUIEdit(self.jTableRegex)
+        regexerGUIEdit = RegexerGUIEdit(self.jTableRegex, event)
+        regexerGUIEdit.pack()
+        regexerGUIEdit.show()
+
+    def handleJButtonEdit(self, event):
+        regexerGUIEdit = RegexerGUIEdit(self.jTableRegex, event)
         regexerGUIEdit.pack()
         regexerGUIEdit.show()
 
@@ -111,15 +116,14 @@ class RegexerGUI(JFrame):
         if(self.jTableRegex.getSelectedRow() != -1):
             self.jTableRegex.removeRow(self.jTableRegex.getSelectedRow())
             JOptionPane.showMessageDialog(None, "Selected row deleted successfully")
-        print("Button '{}' clicked".format(event.source.text))
-
-    def handleJButtonEdit(self, event):
-        print("Button '{}' clicked".format(event.source.text))
 
 
 class RegexerGUIEdit(JFrame):
 
-    def __init__(self, jTableRegex):
+    def __init__(self, jTableRegex, event):
+        self.jTableRegex = jTableRegex
+        self._event = event
+        
         self.jLabel1 = JLabel()
         self.jLabel1.setText("Specify the details of the regex rule.")
         
@@ -131,13 +135,16 @@ class RegexerGUIEdit(JFrame):
 
         self.jTextFieldRuleName = JTextField()
         self.jTextFieldRegex = JTextField()
+
+        if event.source.text == "Add":
+            self.setTitle("Add Regex Rule")
+        elif event.source.text == "Edit":
+            self.setTitle("Edit Regex Rule")
+            self.jTextFieldRuleName.setText(self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 1))
+            self.jTextFieldRegex.setText(self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 2))
         
-        self.jButtonOK = JButton("OK", actionPerformed=self.addRegex)
+        self.jButtonOK = JButton("OK", actionPerformed=self.addEditRegex)
         self.jButtonCancel = JButton("Cancel", actionPerformed=self.closeRegexerGUIEdit)
-
-        self.jTableRegex = jTableRegex
-
-        self.setTitle("Add Regex Rule")
 
         self.jTextFieldRuleName.setToolTipText("")
         self.jTextFieldRuleName.setBorder(BorderFactory.createLineBorder(Color.lightGray));
@@ -187,11 +194,20 @@ class RegexerGUIEdit(JFrame):
                 .addContainerGap(GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         )
 
-    def addRegex(self, event):
-        lastIndex = self.jTableRegex.getValueAt(self.jTableRegex.getRowCount()-1, 0)
-        self.jTableRegex.addRow([lastIndex + 1, self.jTextFieldRuleName.getText(), self.jTextFieldRegex.getText()])
-        print(self.jTableRegex.getModel().getDataVector())
-        self.dispose()
+    def addEditRegex(self, event):
+        if self._event.source.text == "Add":
+            lastIndex = self.jTableRegex.getValueAt(self.jTableRegex.getRowCount()-1, 0)
+            self.jTableRegex.addRow([lastIndex + 1, self.jTextFieldRuleName.getText(), self.jTextFieldRegex.getText()])
+            print(self.jTableRegex.getModel().getDataVector())
+            self.dispose()
+        elif self._event.source.text == "Edit":
+            rowIndex = self.jTableRegex.getSelectedRow()
+            self.jTableRegex.setValueAt(self.jTextFieldRuleName.getText(), rowIndex, 1) # Rule Name column
+            self.jTableRegex.setValueAt(self.jTextFieldRegex.getText(), rowIndex, 2) # Regex Rule column
+            # self.jTableRegex.getModel().fireTableDataChanged()
+            print(self.jTableRegex.getModel().getDataVector())
+            self.dispose()
+
 
     def closeRegexerGUIEdit(self, event):
         self.dispose()
@@ -259,6 +275,9 @@ class RegexTable(JTable):
 
     def removeRow(self, row):
         self.getModel().removeRow(row)
+
+    def setValueAt(self, value, row, column):
+        self.getModel().setValueAt(value, row, column)
 
 
 # support for burp-exceptions
