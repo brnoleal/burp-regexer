@@ -18,7 +18,9 @@ from javax.swing import JLabel
 from javax.swing import JOptionPane
 from javax.swing import JPanel
 from javax.swing import JScrollPane
+from javax.swing import JSplitPane
 from javax.swing import JTable
+from javax.swing import JTextArea
 from javax.swing import JTextField
 
 from javax.swing.table import DefaultTableModel
@@ -40,11 +42,11 @@ class BurpExtender(IBurpExtender, ITab):
         except:
             pass
 
-        callbacks.setExtensionName("RegexerGUI")
+        callbacks.setExtensionName("Regexer")
         callbacks.addSuiteTab(self)
 
     def getTabCaption(self):
-        return "RegexerGUI"
+        return "Regexer"
 
     def getUiComponent(self):
         tableData = [
@@ -64,14 +66,29 @@ class BurpExtender(IBurpExtender, ITab):
 class RegexerGUI(JFrame):
 
     def __init__(self, data, columns):
-        self.jScrollPane1 = JScrollPane()
-        self.jTableRegex = JTable()
         self.jButtonAdd = JButton("Add", actionPerformed=self.handleJButtonAdd)
         self.jButtonRemove = JButton("Remove", actionPerformed=self.handleJButtonRemove)
         self.jButtonEdit = JButton("Edit", actionPerformed=self.handleJButtonEdit)
+        self.jButtonCopy = JButton("Copy")
+        self.jButtonClear = JButton("Clear")
+        self.jTextAreaExtracted = JTextArea()
+        self.jTableRegex = JTable()
+        self.jSplitPane1 = JSplitPane()
+        self.jScrollPane1 = JScrollPane()
+        self.jScrollPane2 = JScrollPane()
 
         self.jTableRegex = RegexTable(data, columns)
+
         self.jScrollPane1.setViewportView(self.jTableRegex)
+        self.jScrollPane1.setViewportView(self.jTableRegex)
+
+        self.jTextAreaExtracted.setColumns(20)
+        self.jTextAreaExtracted.setRows(5)
+
+        self.jScrollPane2.setViewportView(self.jTextAreaExtracted)
+
+        self.jSplitPane1.setTopComponent(self.jScrollPane1)
+        self.jSplitPane1.setBottomComponent(self.jScrollPane2)
 
         self.panel = JPanel()
         layout = GroupLayout(self.panel)
@@ -80,27 +97,31 @@ class RegexerGUI(JFrame):
         layout.setHorizontalGroup(
             layout.createParallelGroup(GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
-                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.TRAILING, False)
-                    .addComponent(self.jButtonEdit, GroupLayout.Alignment.LEADING, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(self.jButtonAdd, GroupLayout.Alignment.LEADING, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(self.jButtonRemove, GroupLayout.PREFERRED_SIZE, 86, GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(self.jScrollPane1, GroupLayout.DEFAULT_SIZE, 777, Short.MAX_VALUE))
+                .addGap(6, 6, 6)
+                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING, False)
+                    .addComponent(self.jButtonCopy, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(self.jButtonEdit, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(self.jButtonAdd, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(self.jButtonRemove, GroupLayout.DEFAULT_SIZE, 86, Short.MAX_VALUE)
+                    .addComponent(self.jButtonClear, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(self.jSplitPane1, GroupLayout.DEFAULT_SIZE, 801, Short.MAX_VALUE))
         )
         layout.setVerticalGroup(
             layout.createParallelGroup(GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-                    .addComponent(self.jScrollPane1, GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(self.jButtonAdd, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
-                        .addGap(4, 4, 4)
-                        .addComponent(self.jButtonEdit, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(self.jButtonRemove, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
-                        .addGap(0, 182, Short.MAX_VALUE))))
-        )             
+                .addComponent(self.jButtonAdd, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
+                .addGap(4, 4, 4)
+                .addComponent(self.jButtonEdit, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(self.jButtonRemove, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
+                .addGap(56, 56, 56)
+                .addComponent(self.jButtonCopy, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(self.jButtonClear, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+            .addComponent(self.jSplitPane1, GroupLayout.DEFAULT_SIZE, 525, Short.MAX_VALUE)
+        )            
 
     def handleJButtonAdd(self, event):
         regexerGUIEdit = RegexerGUIEdit(self.jTableRegex, event)
