@@ -89,6 +89,7 @@ class RegexerGUI(JFrame):
 
         self.jSplitPane1.setTopComponent(self.jScrollPane1)
         self.jSplitPane1.setBottomComponent(self.jScrollPane2)
+        self.jSplitPane1.setOrientation(JSplitPane.VERTICAL_SPLIT)
 
         self.panel = JPanel()
         layout = GroupLayout(self.panel)
