@@ -49,6 +49,20 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self._log = ArrayList()
         self._lock = Lock()
 
+        self.regexTableData = [
+            [1, "1st rule", "://"],
+            [2, "2nd rule", "url="],
+            [3, "3rd rule", "<a link="]
+        ]
+        self.regexTableColumns = ["#", "Rule Name", "Regex Rule"]
+
+        self.entryTableData = [
+            ["Proxy", "http://google.com"],
+            ["Repeater", "https://itau.com"],
+            ["Intruder", "https://iti.cloud.com"]
+        ]
+        self.entryTableColumns = ["Tool", "URI"]        
+
         try:
             sys.stdout = callbacks.getStdout()
         except:
@@ -61,30 +75,14 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         return "Regexer"
 
     def getUiComponent(self):
-        regexTableData = [
-            [1, "1st rule", "://"],
-            [2, "2nd rule", "url="],
-            [3, "3rd rule", "<a link="]
-        ]
-        regexTableColumns = ["#", "Rule Name", "Regex Rule"]
-
-        entryTableData = [
-            ["Proxy", "http://google.com"],
-            ["Repeater", "https://itau.com"],
-            ["Intruder", "https://iti.cloud.com"]
-        ]
-        entryTableColumns = ["Tool", "URI"]
-        
-        regexerGui = RegexerGUI(self, regexTableData, regexTableColumns, entryTableData, entryTableColumns)
+        regexerGui = RegexerGUI(self)
         return regexerGui.jPanelMain
 
 
 class RegexerGUI(JFrame):
 
-    def __init__(self, extender, regexTableData, regexTableColumns, entryTableData, entryTableColumns):
+    def __init__(self, extender):
         self.jPanelMain = JPanel()
-        self.jTableRegex = JTable()
-        self.jTableEntry = JTable()
 
         self.jSplitPane1 = JSplitPane()
         self.jSplitPane2 = JSplitPane()
@@ -104,10 +102,10 @@ class RegexerGUI(JFrame):
         self.jButtonCopy = JButton("Copy")
         self.jButtonClear = JButton("Clear")
 
-        self.jTableRegex = RegexTable(regexTableData, regexTableColumns)
+        self.jTableRegex = RegexTable(extender)
         self.jScrollPaneTableRegex.setViewportView(self.jTableRegex)
 
-        self.jTableEntry = EntryTable(entryTableData, entryTableColumns)
+        self.jTableEntry = EntryTable(extender)
         self.jScrollPaneTableEntry.setViewportView(self.jTableEntry)
 
         self.jSplitPane2.setLeftComponent(self.jScrollPaneTableEntry)
@@ -295,8 +293,8 @@ class RegexerGUIEdit(JFrame):
 
 class RegexTableModel(DefaultTableModel):
 
-    def __init__(self, data, columnNames):
-        DefaultTableModel.__init__(self, data, columnNames)
+    def __init__(self, data, columns):
+        DefaultTableModel.__init__(self, data, columns)
 
     def isCellEditable(self, row, column):
         canEdit = [False, False, False]
@@ -309,8 +307,8 @@ class RegexTableModel(DefaultTableModel):
 
 class EntryTableModel(DefaultTableModel):
 
-    def __init__(self, data, columnNames):
-        DefaultTableModel.__init__(self, data, columnNames)
+    def __init__(self, data, columns):
+        DefaultTableModel.__init__(self, data, columns)
 
     def isCellEditable(self, row, column):
         canEdit = [False, False]
@@ -391,8 +389,8 @@ class EntryTableMouseListener(MouseListener):
 
 class RegexTable(JTable):
 
-    def __init__(self, data, columnNames):
-        model = RegexTableModel(data, columnNames)
+    def __init__(self, extender):
+        model = RegexTableModel(extender.regexTableData, extender.regexTableColumns)
         self.setModel(model)
         self.setAutoCreateRowSorter(True)
         self.getTableHeader().setReorderingAllowed(False)
@@ -410,8 +408,9 @@ class RegexTable(JTable):
 
 class EntryTable(JTable):
 
-    def __init__(self, data, columnNames):
-        model = EntryTableModel(data, columnNames)
+    def __init__(self, extender):
+        model = EntryTableModel(extender.entryTableData, extender.entryTableColumns)
+        self.extender = extender
         self.setModel(model)
         self.setAutoCreateRowSorter(True)
         self.getTableHeader().setReorderingAllowed(False)
