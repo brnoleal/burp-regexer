@@ -49,18 +49,20 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self._log = ArrayList()
         self._lock = Lock()
 
+        self._requestViewer = self._callbacks.createMessageEditor(self, False)
+        self._responseViewer = self._callbacks.createMessageEditor(self, False)        
+
         self.regexTableData = [
             [1, "1st rule", "://"],
             [2, "2nd rule", "url="],
             [3, "3rd rule", "<a link="]
         ]
-        self.regexTableColumns = ["#", "Rule Name", "Regex Rule"]
-
         self.entryTableData = [
             ["Proxy", "http://google.com"],
             ["Repeater", "https://itau.com"],
             ["Intruder", "https://iti.cloud.com"]
         ]
+        self.regexTableColumns = ["#", "Rule Name", "Regex Rule"]
         self.entryTableColumns = ["Tool", "URI"]        
 
         try:
@@ -70,6 +72,8 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
 
         callbacks.setExtensionName("Regexer")
         callbacks.addSuiteTab(self)
+        callbacks.registerHttpListener(self)
+        return
 
     def getTabCaption(self):
         return "Regexer"
@@ -78,10 +82,55 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         regexerGui = RegexerGUI(self)
         return regexerGui.jPanelMain
 
+    def processHttpMessage(self, toolFlag, messageIsRequest, messageInfo):
+        if messageIsRequest:
+            return
+
+        self._lock.acquire()
+        row = self._log.size()
+        self._log.add(LogEntry(toolFlag, self._callbacks.saveBuffersToTempFiles(messageInfo), self._helpers.analyzeRequest(messageInfo).getUrl()))
+        print(self._log)
+        self.fireTableRowsInserted(row, row)
+        self._lock.release()        
+
+    def getRowCount(self):
+        try:
+            return self._log.size()
+        except:
+            return 0
+
+    def getColumnCount(self):
+        return 2
+
+    def getColumnName(self, columnIndex):
+        if columnIndex == 0:
+            return "Tool"
+        if columnIndex == 1:
+            return "URL"
+        return ""
+
+    def getValueAt(self, rowIndex, columnIndex):
+        logEntry = self._log.get(rowIndex)
+        if columnIndex == 0:
+            return self._callbacks.getToolName(logEntry._tool)
+        if columnIndex == 1:
+            return logEntry._url.toString()
+        return ""
+
+    def getHttpService(self):
+        return self._currentlyDisplayedItem.getHttpService()
+
+    def getRequest(self):
+        return self._currentlyDisplayedItem.getRequest()
+
+    def getResponse(self):
+        return self._currentlyDisplayedItem.getResponse()
+
 
 class RegexerGUI(JFrame):
 
     def __init__(self, extender):
+        self._extender = extender
         self.jPanelMain = JPanel()
 
         self.jSplitPane1 = JSplitPane()
@@ -102,10 +151,10 @@ class RegexerGUI(JFrame):
         self.jButtonCopy = JButton("Copy")
         self.jButtonClear = JButton("Clear")
 
-        self.jTableRegex = RegexTable(extender)
+        self.jTableRegex = RegexTable(self._extender)
         self.jScrollPaneTableRegex.setViewportView(self.jTableRegex)
 
-        self.jTableEntry = EntryTable(extender)
+        self.jTableEntry = EntryTable(self._extender)
         self.jScrollPaneTableEntry.setViewportView(self.jTableEntry)
 
         self.jSplitPane2.setLeftComponent(self.jScrollPaneTableEntry)
@@ -115,29 +164,8 @@ class RegexerGUI(JFrame):
         self.jSplitPane1.setRightComponent(self.jSplitPane2)
         self.jSplitPane1.setOrientation(JSplitPane.VERTICAL_SPLIT)
 
-        self.jPanelRequestLayout = GroupLayout(self.jPanelRequest)
-        self.jPanelRequest.setLayout(self.jPanelRequestLayout)
-        self.jPanelRequestLayout.setHorizontalGroup(
-            self.jPanelRequestLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-            .addGap(0, 340, Short.MAX_VALUE)
-        )
-        self.jPanelRequestLayout.setVerticalGroup(
-            self.jPanelRequestLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-            .addGap(0, 464, Short.MAX_VALUE)
-        )
-        self.jTabbedPane.addTab("Request", self.jPanelRequest)
-
-        self.jPanelResponseLayout = GroupLayout(self.jPanelResponse)
-        self.jPanelResponse.setLayout(self.jPanelResponseLayout)
-        self.jPanelResponseLayout.setHorizontalGroup(
-            self.jPanelResponseLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-            .addGap(0, 340, Short.MAX_VALUE)
-        )
-        self.jPanelResponseLayout.setVerticalGroup(
-            self.jPanelResponseLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
-            .addGap(0, 464, Short.MAX_VALUE)
-        )
-        self.jTabbedPane.addTab("Response", self.jPanelResponse)
+        self.jTabbedPane.addTab("Request", self._extender._requestViewer.getComponent())
+        self.jTabbedPane.addTab("Response", self._extender._responseViewer.getComponent())
 
         self.jTextAreaLineMatched.setColumns(20)
         self.jTextAreaLineMatched.setRows(5)
@@ -409,21 +437,27 @@ class RegexTable(JTable):
 class EntryTable(JTable):
 
     def __init__(self, extender):
-        model = EntryTableModel(extender.entryTableData, extender.entryTableColumns)
-        self.extender = extender
-        self.setModel(model)
+        # model = EntryTableModel(extender._log, extender.entryTableColumns)
+        self._extender = extender
+        self.setModel(extender)
         self.setAutoCreateRowSorter(True)
         self.getTableHeader().setReorderingAllowed(False)
-        self.addMouseListener(EntryTableMouseListener())
+        # self.addMouseListener(EntryTableMouseListener())
 
-    def addRow(self, data):
-        self.getModel().addRow(data)
+    def changeSelection(self, row, col, toggle, extend):
+        logEntry = self._extender._log.get(row)
+        self._extender._requestViewer.setMessage(logEntry._requestResponse.getRequest(), True)
+        self._extender._responseViewer.setMessage(logEntry._requestResponse.getResponse(), True)
+        self._extender._currentlyDisplayedItem = logEntry._requestResponse
 
-    def removeRow(self, row):
-        self.getModel().removeRow(row)
+        JTable.changeSelection(self, row, col, toggle, extend)
 
-    def setValueAt(self, value, row, column):
-        self.getModel().setValueAt(value, row, column)
+
+class LogEntry:
+    def __init__(self, tool, requestResponse, url):
+        self._tool = tool
+        self._requestResponse = requestResponse
+        self._url = url
 
 
 # support for burp-exceptions
