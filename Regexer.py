@@ -1,4 +1,6 @@
 from burp import IBurpExtender
+from burp import IHttpListener
+from burp import IMessageEditorController
 from burp import ITab
 
 from java.lang import Integer
@@ -20,22 +22,32 @@ from javax.swing import JPanel
 from javax.swing import JScrollPane
 from javax.swing import JSplitPane
 from javax.swing import JTable
+from javax.swing import JTabbedPane
 from javax.swing import JTextArea
 from javax.swing import JTextField
-
 from javax.swing.table import DefaultTableModel
+from javax.swing.table import AbstractTableModel
+
+from java.util import ArrayList;
 from java.awt import Color
 from java.awt.event import MouseListener
+
 import sys
+from threading import Lock
 try:
     from exceptions_fix import FixBurpExceptions
 except ImportError:
     pass
 
 
-class BurpExtender(IBurpExtender, ITab):
+class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController, AbstractTableModel):
 
     def registerExtenderCallbacks(self, callbacks):
+
+        self._callbacks = callbacks
+        self._helpers = callbacks.getHelpers()
+        self._log = ArrayList()
+        self._lock = Lock()
 
         try:
             sys.stdout = callbacks.getStdout()
@@ -49,52 +61,98 @@ class BurpExtender(IBurpExtender, ITab):
         return "Regexer"
 
     def getUiComponent(self):
-        tableData = [
+        regexTableData = [
             [1, "1st rule", "://"],
             [2, "2nd rule", "url="],
             [3, "3rd rule", "<a link="]
         ]
-        tableColumns = ["#", "Rule Name", "Regex Rule"]
+        regexTableColumns = ["#", "Rule Name", "Regex Rule"]
+
+        entryTableData = [
+            ["Proxy", "http://google.com"],
+            ["Repeater", "https://itau.com"],
+            ["Intruder", "https://iti.cloud.com"]
+        ]
+        entryTableColumns = ["Tool", "URI"]
         
-        regexerGui = RegexerGUI(tableData, tableColumns)
-        # regexerGuiEdit = RegexerGUIEdit()
-        # regexerGuiEdit.pack()
-        # regexerGuiEdit.show()
-        return regexerGui.panel
+        regexerGui = RegexerGUI(self, regexTableData, regexTableColumns, entryTableData, entryTableColumns)
+        return regexerGui.jPanelMain
 
 
 class RegexerGUI(JFrame):
 
-    def __init__(self, data, columns):
+    def __init__(self, extender, regexTableData, regexTableColumns, entryTableData, entryTableColumns):
+        self.jPanelMain = JPanel()
+        self.jTableRegex = JTable()
+        self.jTableEntry = JTable()
+
+        self.jSplitPane1 = JSplitPane()
+        self.jSplitPane2 = JSplitPane()
+        self.jScrollPaneTableRegex = JScrollPane()
+        self.jScrollPaneLineMatched = JScrollPane()
+        self.jScrollPaneTableEntry = JScrollPane()
+        self.jScrollPaneValueMatched = JScrollPane()
+        self.jTabbedPane = JTabbedPane()
+        self.jPanelRequest = JPanel()
+        self.jPanelResponse = JPanel()
+        self.jTextAreaLineMatched = JTextArea()
+        self.jTextAreaValueMatched = JTextArea()
+
         self.jButtonAdd = JButton("Add", actionPerformed=self.handleJButtonAdd)
         self.jButtonRemove = JButton("Remove", actionPerformed=self.handleJButtonRemove)
         self.jButtonEdit = JButton("Edit", actionPerformed=self.handleJButtonEdit)
         self.jButtonCopy = JButton("Copy")
         self.jButtonClear = JButton("Clear")
-        self.jTextAreaExtracted = JTextArea()
-        self.jTableRegex = JTable()
-        self.jSplitPane1 = JSplitPane()
-        self.jScrollPane1 = JScrollPane()
-        self.jScrollPane2 = JScrollPane()
 
-        self.jTableRegex = RegexTable(data, columns)
+        self.jTableRegex = RegexTable(regexTableData, regexTableColumns)
+        self.jScrollPaneTableRegex.setViewportView(self.jTableRegex)
 
-        self.jScrollPane1.setViewportView(self.jTableRegex)
-        self.jScrollPane1.setViewportView(self.jTableRegex)
+        self.jTableEntry = EntryTable(entryTableData, entryTableColumns)
+        self.jScrollPaneTableEntry.setViewportView(self.jTableEntry)
 
-        self.jTextAreaExtracted.setColumns(20)
-        self.jTextAreaExtracted.setRows(5)
+        self.jSplitPane2.setLeftComponent(self.jScrollPaneTableEntry)
+        self.jSplitPane2.setRightComponent(self.jTabbedPane)
 
-        self.jScrollPane2.setViewportView(self.jTextAreaExtracted)
-
-        self.jSplitPane1.setTopComponent(self.jScrollPane1)
-        self.jSplitPane1.setBottomComponent(self.jScrollPane2)
+        self.jSplitPane1.setTopComponent(self.jScrollPaneTableRegex)
+        self.jSplitPane1.setRightComponent(self.jSplitPane2)
         self.jSplitPane1.setOrientation(JSplitPane.VERTICAL_SPLIT)
 
-        self.panel = JPanel()
-        layout = GroupLayout(self.panel)
-        self.panel.setLayout(layout)
-        layout.setAutoCreateGaps(True)
+        self.jPanelRequestLayout = GroupLayout(self.jPanelRequest)
+        self.jPanelRequest.setLayout(self.jPanelRequestLayout)
+        self.jPanelRequestLayout.setHorizontalGroup(
+            self.jPanelRequestLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+            .addGap(0, 340, Short.MAX_VALUE)
+        )
+        self.jPanelRequestLayout.setVerticalGroup(
+            self.jPanelRequestLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+            .addGap(0, 464, Short.MAX_VALUE)
+        )
+        self.jTabbedPane.addTab("Request", self.jPanelRequest)
+
+        self.jPanelResponseLayout = GroupLayout(self.jPanelResponse)
+        self.jPanelResponse.setLayout(self.jPanelResponseLayout)
+        self.jPanelResponseLayout.setHorizontalGroup(
+            self.jPanelResponseLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+            .addGap(0, 340, Short.MAX_VALUE)
+        )
+        self.jPanelResponseLayout.setVerticalGroup(
+            self.jPanelResponseLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+            .addGap(0, 464, Short.MAX_VALUE)
+        )
+        self.jTabbedPane.addTab("Response", self.jPanelResponse)
+
+        self.jTextAreaLineMatched.setColumns(20)
+        self.jTextAreaLineMatched.setRows(5)
+        self.jScrollPaneLineMatched.setViewportView(self.jTextAreaLineMatched)
+        self.jTabbedPane.addTab("Line Matched", self.jScrollPaneLineMatched)
+
+        self.jTextAreaValueMatched.setColumns(20)
+        self.jTextAreaValueMatched.setRows(5)
+        self.jScrollPaneValueMatched.setViewportView(self.jTextAreaValueMatched)
+        self.jTabbedPane.addTab("Value Matched", self.jScrollPaneValueMatched)
+
+        layout = GroupLayout(self.jPanelMain)
+        self.jPanelMain.setLayout(layout)
         layout.setHorizontalGroup(
             layout.createParallelGroup(GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
@@ -106,7 +164,7 @@ class RegexerGUI(JFrame):
                     .addComponent(self.jButtonRemove, GroupLayout.DEFAULT_SIZE, 86, Short.MAX_VALUE)
                     .addComponent(self.jButtonClear, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(self.jSplitPane1, GroupLayout.DEFAULT_SIZE, 801, Short.MAX_VALUE))
+                .addComponent(self.jSplitPane1))
         )
         layout.setVerticalGroup(
             layout.createParallelGroup(GroupLayout.Alignment.LEADING)
@@ -249,7 +307,55 @@ class RegexTableModel(DefaultTableModel):
         return columnClasses[column]
 
 
+class EntryTableModel(DefaultTableModel):
+
+    def __init__(self, data, columnNames):
+        DefaultTableModel.__init__(self, data, columnNames)
+
+    def isCellEditable(self, row, column):
+        canEdit = [False, False]
+        return canEdit[column]
+
+    def getColumnClass(self, column):
+        columnClasses = [String, String]
+        return columnClasses[column]
+
+
 class RegexTableMouseListener(MouseListener):
+
+    def getClickedIndex(self, event):
+        eventTable = event.getSource()
+        row = eventTable.getSelectedRow()
+        return eventTable.getValueAt(row, 0)
+
+    def getClickedRow(self, event):
+        eventTable = event.getSource()
+        return eventTable.getModel().getDataVector().elementAt(eventTable.getSelectedRow())
+
+    def mouseClicked(self, event):
+        if event.getClickCount() == 1:
+            print("Single-click: {}".format(self.getClickedRow(event)))
+        elif event.getClickCount() == 2:
+            print("Double-click: {}".format(self.getClickedRow(event)))
+            tbl = event.getSource()
+            tbl.addRow([11, "dblclick-name", "dblclick-severity"])
+        else:
+            print("Another element: {}".format(event))
+
+    def mouseEntered(self, event):
+        pass
+
+    def mouseExited(self, event):
+        pass
+
+    def mousePressed(self, event):
+        pass
+
+    def mouseReleased(self, event):
+        pass
+
+
+class EntryTableMouseListener(MouseListener):
 
     def getClickedIndex(self, event):
         eventTable = event.getSource()
@@ -291,6 +397,25 @@ class RegexTable(JTable):
         self.setAutoCreateRowSorter(True)
         self.getTableHeader().setReorderingAllowed(False)
         self.addMouseListener(RegexTableMouseListener())
+
+    def addRow(self, data):
+        self.getModel().addRow(data)
+
+    def removeRow(self, row):
+        self.getModel().removeRow(row)
+
+    def setValueAt(self, value, row, column):
+        self.getModel().setValueAt(value, row, column)
+
+
+class EntryTable(JTable):
+
+    def __init__(self, data, columnNames):
+        model = EntryTableModel(data, columnNames)
+        self.setModel(model)
+        self.setAutoCreateRowSorter(True)
+        self.getTableHeader().setReorderingAllowed(False)
+        self.addMouseListener(EntryTableMouseListener())
 
     def addRow(self, data):
         self.getModel().addRow(data)
