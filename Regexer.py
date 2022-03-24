@@ -88,10 +88,26 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
 
         self._lock.acquire()
         row = self._log.size()
-        self._log.add(LogEntry(toolFlag, self._callbacks.saveBuffersToTempFiles(messageInfo), self._helpers.analyzeRequest(messageInfo).getUrl()))
-        print(self._log)
+        url = self._helpers.analyzeRequest(messageInfo).getUrl()
+        method = self._helpers.analyzeRequest(messageInfo).getHeaders()[0].split(" ")[0]
+        self._log.add(LogEntry(toolFlag, self._callbacks.saveBuffersToTempFiles(messageInfo), url, method))
+        self.processRegex(self._callbacks.saveBuffersToTempFiles(messageInfo))
         self.fireTableRowsInserted(row, row)
-        self._lock.release()        
+        self._lock.release()   
+
+    def processRegex(self, messageInfo):
+        requestInfo = self._helpers.analyzeRequest(messageInfo.getRequest())
+        requestHeader = requestInfo.getHeaders()
+        requestBody = messageInfo.getRequest()[(requestInfo.getBodyOffset()):].tostring()
+
+        responseInfo = self._helpers.analyzeResponse(messageInfo.getResponse())
+        responseHeader = responseInfo.getHeaders()
+        responseBody = messageInfo.getResponse()[(responseInfo.getBodyOffset()):].tostring()
+
+        if requestBody:
+            pass
+        if responseBody: 
+            pass
 
     def getRowCount(self):
         try:
@@ -100,12 +116,14 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
             return 0
 
     def getColumnCount(self):
-        return 2
+        return 3
 
     def getColumnName(self, columnIndex):
         if columnIndex == 0:
             return "Tool"
         if columnIndex == 1:
+            return "Method"
+        if columnIndex == 2:
             return "URL"
         return ""
 
@@ -114,6 +132,8 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         if columnIndex == 0:
             return self._callbacks.getToolName(logEntry._tool)
         if columnIndex == 1:
+            return logEntry._method
+        if columnIndex == 2:
             return logEntry._url.toString()
         return ""
 
@@ -381,40 +401,6 @@ class RegexTableMouseListener(MouseListener):
         pass
 
 
-class EntryTableMouseListener(MouseListener):
-
-    def getClickedIndex(self, event):
-        eventTable = event.getSource()
-        row = eventTable.getSelectedRow()
-        return eventTable.getValueAt(row, 0)
-
-    def getClickedRow(self, event):
-        eventTable = event.getSource()
-        return eventTable.getModel().getDataVector().elementAt(eventTable.getSelectedRow())
-
-    def mouseClicked(self, event):
-        if event.getClickCount() == 1:
-            print("Single-click: {}".format(self.getClickedRow(event)))
-        elif event.getClickCount() == 2:
-            print("Double-click: {}".format(self.getClickedRow(event)))
-            tbl = event.getSource()
-            tbl.addRow([11, "dblclick-name", "dblclick-severity"])
-        else:
-            print("Another element: {}".format(event))
-
-    def mouseEntered(self, event):
-        pass
-
-    def mouseExited(self, event):
-        pass
-
-    def mousePressed(self, event):
-        pass
-
-    def mouseReleased(self, event):
-        pass
-
-
 class RegexTable(JTable):
 
     def __init__(self, extender):
@@ -442,22 +428,21 @@ class EntryTable(JTable):
         self.setModel(extender)
         self.setAutoCreateRowSorter(True)
         self.getTableHeader().setReorderingAllowed(False)
-        # self.addMouseListener(EntryTableMouseListener())
 
     def changeSelection(self, row, col, toggle, extend):
         logEntry = self._extender._log.get(row)
         self._extender._requestViewer.setMessage(logEntry._requestResponse.getRequest(), True)
         self._extender._responseViewer.setMessage(logEntry._requestResponse.getResponse(), True)
         self._extender._currentlyDisplayedItem = logEntry._requestResponse
-
         JTable.changeSelection(self, row, col, toggle, extend)
 
 
 class LogEntry:
-    def __init__(self, tool, requestResponse, url):
+    def __init__(self, tool, requestResponse, url, method):
         self._tool = tool
         self._requestResponse = requestResponse
         self._url = url
+        self._method = method
 
 
 # support for burp-exceptions
