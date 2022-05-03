@@ -149,46 +149,6 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
                     if line not in lineMatched:
                         lineMatched.append(line)
 
-
-    def processRegex2(self, messageInfo, lineMatched, valueMatched):
-        global REGEX_TABLE
-        lineMatched = []
-        valueMatched = []
-
-        requestInfo = self._helpers.analyzeRequest(messageInfo.getRequest())
-        requestHeader = requestInfo.getHeaders()
-        requestBody = messageInfo.getRequest()[(requestInfo.getBodyOffset()):].tostring()
-
-        responseInfo = self._helpers.analyzeResponse(messageInfo.getResponse())
-        responseHeader = responseInfo.getHeaders()
-        responseBody = messageInfo.getResponse()[(responseInfo.getBodyOffset()):].tostring()
-        
-        for header in (requestHeader + responseHeader):
-            for regex in REGEX_TABLE:
-                resultRegex = re.findall("{}".format(regex[2]), header)
-                if resultRegex:
-                    for result in resultRegex:
-                        if result not in valueMatched:
-                            valueMatched.append(result)
-                    if header not in lineMatched:
-                        lineMatched.append(header)
-
-        if requestBody:
-            pass
-        if responseBody:
-            responseLines = [line + '\n' for line in responseBody.split('\n')]
-            for responseLine in responseLines:
-                for regex in REGEX_TABLE:
-                    resultRegex = re.findall("{}".format(regex[2]), responseLine)
-                    if resultRegex:
-                        for result in resultRegex:
-                            if result not in valueMatched:
-                                valueMatched.append(result)
-                        if responseLine not in lineMatched:
-                            print(responseLine)
-                            lineMatched.append(responseLine)
-        return lineMatched, valueMatched
-
     def getRowCount(self):
         try:
             return self._log.size()
