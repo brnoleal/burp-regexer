@@ -52,14 +52,17 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self._helpers = callbacks.getHelpers()
         self._log = ArrayList()
         self._lock = Lock()
+
         self._jTextAreaLineMatched = JTextArea()
+        self._jTextAreaLineMatched.setEditable(False);
         self._jTextAreaValueMatched = JTextArea()
+        self._jTextAreaValueMatched.setEditable(False);
         
         self._requestViewer = self._callbacks.createMessageEditor(self, False)
         self._responseViewer = self._callbacks.createMessageEditor(self, False)        
 
         self.regexTableData = [
-            [1, "1st rule", "://"],
+            [1, "URI Schemes", "([a-zA-Z0-9-]*://[a-zA-Z0-9_./-]+)"],
             [2, "2nd rule", "url="],
             [3, "3rd rule", "<a link="],
             [4, "4rd rule", "Sec"]
@@ -67,11 +70,6 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         global REGEX_TABLE
         REGEX_TABLE = self.regexTableData
         
-        # self.entryTableData = [
-        #     ["Proxy", "http://google.com"],
-        #     ["Repeater", "https://itau.com"],
-        #     ["Intruder", "https://iti.cloud.com"]
-        # ]
         self.regexTableColumns = ["#", "Rule Name", "Regex"]
         self.entryTableColumns = ["Tool", "URI"]        
 
@@ -101,18 +99,15 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         url = self._helpers.analyzeRequest(messageInfo).getUrl()
         method = self._helpers.analyzeRequest(messageInfo).getHeaders()[0].split(" ")[0]
         lineMatched, valueMatched = self.processRegex(self._callbacks.saveBuffersToTempFiles(messageInfo))
-        print(lineMatched)
-        print(valueMatched)
-        print("-----------------------\n")
-
-        self._log.add(LogEntry(row, 
-                                toolFlag, 
-                                self._callbacks.saveBuffersToTempFiles(messageInfo), 
-                                url, 
-                                method,
-                                lineMatched,
-                                valueMatched))
-        self.fireTableRowsInserted(row, row)
+        if lineMatched or valueMatched:
+            self._log.add(LogEntry(row, 
+                                    toolFlag, 
+                                    self._callbacks.saveBuffersToTempFiles(messageInfo), 
+                                    url, 
+                                    method,
+                                    lineMatched,
+                                    valueMatched))
+            self.fireTableRowsInserted(row, row)
         self._lock.release()   
 
     def processRegex(self, messageInfo):
@@ -129,21 +124,14 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         responseBody = messageInfo.getResponse()[(responseInfo.getBodyOffset()):].tostring()
         
         for header in (requestHeader + responseHeader):
-            # for regex in self.regexTableData:
             for regex in REGEX_TABLE:
                 resultRegex = re.findall("{}".format(regex[2]), header)
                 if resultRegex:
-                    print("+++++++++++++++++++++++++++++++++++++++++")
-                    print(regex)
-                    print(resultRegex)
-                    valueMatched.append(resultRegex)
-
+                    if resultRegex not in valueMatched:
+                        valueMatched.append(resultRegex)
                     resultLine = re.findall("^.*{}.*$".format(regex[2]), header)
-                    lineMatched.append(resultLine)
-                    print(resultLine)
-                    # print(dir(result))
-                    # print(result.groups())
-                    print("\n\n")
+                    if resultLine not in lineMatched:
+                        lineMatched.append(resultLine)
 
         # for header in headers:
         #     for regex in regex_list:
@@ -216,8 +204,6 @@ class RegexerGUI(JFrame):
         self.jTabbedPane = JTabbedPane()
         self.jPanelRequest = JPanel()
         self.jPanelResponse = JPanel()
-        # self.jTextAreaLineMatched = JTextArea()
-        # self.jTextAreaValueMatched = JTextArea()
 
         self.jButtonAdd = JButton("Add", actionPerformed=self.handleJButtonAdd)
         self.jButtonRemove = JButton("Remove", actionPerformed=self.handleJButtonRemove)
@@ -241,13 +227,9 @@ class RegexerGUI(JFrame):
         self.jTabbedPane.addTab("Request", self._extender._requestViewer.getComponent())
         self.jTabbedPane.addTab("Response", self._extender._responseViewer.getComponent())
 
-        # self._extender._jTextAreaLineMatched.setColumns(20)
-        # self._extender._jTextAreaLineMatched.setRows(5)
         self.jScrollPaneLineMatched.setViewportView(self._extender._jTextAreaLineMatched)
         self.jTabbedPane.addTab("Line Matched", self.jScrollPaneLineMatched)
 
-        # self._extender._jTextAreaValueMatched.setColumns(20)
-        # self._extender._jTextAreaValueMatched.setRows(5)
         self.jScrollPaneValueMatched.setViewportView(self._extender._jTextAreaValueMatched)
         self.jTabbedPane.addTab("Value Matched", self.jScrollPaneValueMatched)
 
@@ -378,23 +360,16 @@ class RegexerGUIEdit(JFrame):
         global REGEX_TABLE
         if self._event.source.text == "Add":
             lastIndex = self.jTableRegex.getValueAt(self.jTableRegex.getRowCount()-1, 0)
-            self.jTableRegex.addRow([lastIndex + 1, self.jTextFieldRuleName.getText(), self.jTextFieldRegex.getText()])
-            # print(self.jTableRegex.getModel().getDataVector())
-            
+            self.jTableRegex.addRow([lastIndex + 1, self.jTextFieldRuleName.getText(), self.jTextFieldRegex.getText()])            
             REGEX_TABLE = self.jTableRegex.getModel().getDataVector()
-            print(REGEX_TABLE)
             self.dispose()
         elif self._event.source.text == "Edit":
             rowIndex = self.jTableRegex.getSelectedRow()
             self.jTableRegex.setValueAt(self.jTextFieldRuleName.getText(), rowIndex, 1) # Rule Name column
             self.jTableRegex.setValueAt(self.jTextFieldRegex.getText(), rowIndex, 2) # Regex Rule column
-            # self.jTableRegex.getModel().fireTableDataChanged()
-            # print(self.jTableRegex.getModel().getDataVector())
-            
             REGEX_TABLE = self.jTableRegex.getModel().getDataVector()
             print(REGEX_TABLE)
             self.dispose()
-
 
     def closeRegexerGUIEdit(self, event):
         self.dispose()
@@ -411,20 +386,6 @@ class RegexTableModel(DefaultTableModel):
 
     def getColumnClass(self, column):
         columnClasses = [Integer, String, String]
-        return columnClasses[column]
-
-
-class EntryTableModel(DefaultTableModel):
-
-    def __init__(self, data, columns):
-        DefaultTableModel.__init__(self, data, columns)
-
-    def isCellEditable(self, row, column):
-        canEdit = [False, False, False]
-        return canEdit[column]
-
-    def getColumnClass(self, column):
-        columnClasses = [String, String, String]
         return columnClasses[column]
 
 
@@ -469,7 +430,7 @@ class RegexTable(JTable):
         self.setModel(model)
         self.setAutoCreateRowSorter(True)
         self.getTableHeader().setReorderingAllowed(False)
-        self.addMouseListener(RegexTableMouseListener())
+        # self.addMouseListener(RegexTableMouseListener())
 
     def addRow(self, data):
         self.getModel().addRow(data)
@@ -484,7 +445,6 @@ class RegexTable(JTable):
 class EntryTable(JTable):
 
     def __init__(self, extender):
-        # model = EntryTableModel(extender._log, extender.entryTableColumns)
         self._extender = extender
         self.setModel(extender)
         self.setAutoCreateRowSorter(True)
@@ -494,8 +454,8 @@ class EntryTable(JTable):
         logEntry = self._extender._log.get(row)
         self._extender._requestViewer.setMessage(logEntry._requestResponse.getRequest(), True)
         self._extender._responseViewer.setMessage(logEntry._requestResponse.getResponse(), True)
-        self._extender._jTextAreaLineMatched.setText("\n".join(str(line).encode("utf-8") for line in logEntry._lineMatched))
-        self._extender._jTextAreaValueMatched.setText("\n".join(str(value).encode("utf-8") for value in logEntry._valueMatched))
+        self._extender._jTextAreaLineMatched.setText("\n".join(str(line[0]).encode("utf-8") for line in logEntry._lineMatched))
+        self._extender._jTextAreaValueMatched.setText("\n".join(str(value[0]).encode("utf-8") for value in logEntry._valueMatched))
         self._extender._currentlyDisplayedItem = logEntry._requestResponse
         JTable.changeSelection(self, row, col, toggle, extend)
 0
