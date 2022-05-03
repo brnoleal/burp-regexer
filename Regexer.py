@@ -98,7 +98,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         row = self._log.size()
         url = self._helpers.analyzeRequest(messageInfo).getUrl()
         method = self._helpers.analyzeRequest(messageInfo).getHeaders()[0].split(" ")[0]
-        lineMatched, valueMatched = self.processRegex(self._callbacks.saveBuffersToTempFiles(messageInfo))
+        lineMatched, valueMatched = self.processMessage(self._callbacks.saveBuffersToTempFiles(messageInfo))
         if lineMatched or valueMatched:
             self._log.add(LogEntry(row, 
                                     toolFlag, 
@@ -110,7 +110,47 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
             self.fireTableRowsInserted(row, row)
         self._lock.release()   
 
-    def processRegex(self, messageInfo):
+    def processMessage(self, messageInfo):
+        lineMatched = []
+        valueMatched = []
+
+        requestInfo = self._helpers.analyzeRequest(messageInfo.getRequest())
+        requestHeader = requestInfo.getHeaders()
+        requestBody = messageInfo.getRequest()[(requestInfo.getBodyOffset()):].tostring()
+
+        responseInfo = self._helpers.analyzeResponse(messageInfo.getResponse())
+        responseHeader = responseInfo.getHeaders()
+        responseBody = messageInfo.getResponse()[(responseInfo.getBodyOffset()):].tostring()
+
+        if requestHeader or responseHeader:
+            headers = requestHeader + responseHeader
+            self.processRegex(headers, lineMatched, valueMatched)
+
+        if requestBody:
+            requestLines = [line + '\n' for line in requestBody.split('\n')]
+            self.processRegex(requestLines, lineMatched, valueMatched)
+
+        if responseBody:
+            responseLines = [line + '\n' for line in responseBody.split('\n')]
+            self.processRegex(responseLines, lineMatched, valueMatched)
+
+        return lineMatched, valueMatched
+
+    def processRegex(self, lines, lineMatched, valueMatched):
+        global REGEX_TABLE
+        
+        for line in lines:
+            for regex in REGEX_TABLE:
+                resultRegex = re.findall("{}".format(regex[2]), line)
+                if resultRegex:
+                    for result in resultRegex:
+                        if result not in valueMatched:
+                            valueMatched.append(result)
+                    if line not in lineMatched:
+                        lineMatched.append(line)
+
+
+    def processRegex2(self, messageInfo, lineMatched, valueMatched):
         global REGEX_TABLE
         lineMatched = []
         valueMatched = []
@@ -127,24 +167,26 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
             for regex in REGEX_TABLE:
                 resultRegex = re.findall("{}".format(regex[2]), header)
                 if resultRegex:
-                    if resultRegex not in valueMatched:
-                        valueMatched.append(resultRegex)
-                    resultLine = re.findall("^.*{}.*$".format(regex[2]), header)
-                    if resultLine not in lineMatched:
-                        lineMatched.append(resultLine)
+                    for result in resultRegex:
+                        if result not in valueMatched:
+                            valueMatched.append(result)
+                    if header not in lineMatched:
+                        lineMatched.append(header)
 
-        # for header in headers:
-        #     for regex in regex_list:
-        #         result = re.search(f"^.*({regex[2]}).*$", header)
-        #         if result:
-        #             print(result[0])
-        #             print(result[1])
-        #             print("\n")
-
-        # if requestBody:
-            # print(requestBody)
-        # if responseBody: 
-            # print(responseBody)
+        if requestBody:
+            pass
+        if responseBody:
+            responseLines = [line + '\n' for line in responseBody.split('\n')]
+            for responseLine in responseLines:
+                for regex in REGEX_TABLE:
+                    resultRegex = re.findall("{}".format(regex[2]), responseLine)
+                    if resultRegex:
+                        for result in resultRegex:
+                            if result not in valueMatched:
+                                valueMatched.append(result)
+                        if responseLine not in lineMatched:
+                            print(responseLine)
+                            lineMatched.append(responseLine)
         return lineMatched, valueMatched
 
     def getRowCount(self):
@@ -454,11 +496,11 @@ class EntryTable(JTable):
         logEntry = self._extender._log.get(row)
         self._extender._requestViewer.setMessage(logEntry._requestResponse.getRequest(), True)
         self._extender._responseViewer.setMessage(logEntry._requestResponse.getResponse(), True)
-        self._extender._jTextAreaLineMatched.setText("\n".join(str(line[0]).encode("utf-8") for line in logEntry._lineMatched))
-        self._extender._jTextAreaValueMatched.setText("\n".join(str(value[0]).encode("utf-8") for value in logEntry._valueMatched))
+        self._extender._jTextAreaLineMatched.setText("\n".join(str(line).encode("utf-8").strip() for line in logEntry._lineMatched))
+        self._extender._jTextAreaValueMatched.setText("\n".join(str(value).encode("utf-8").strip() for value in logEntry._valueMatched))
         self._extender._currentlyDisplayedItem = logEntry._requestResponse
         JTable.changeSelection(self, row, col, toggle, extend)
-0
+
 
 class LogEntry:
     def __init__(self, index, tool, requestResponse, url, method, lineMatched, valueMatched):
