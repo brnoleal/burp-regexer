@@ -27,6 +27,7 @@ from javax.swing import JTextArea
 from javax.swing import JTextField
 from javax.swing.table import DefaultTableModel
 from javax.swing.table import AbstractTableModel
+from javax.swing.table import TableRowSorter
 
 from java.util import ArrayList;
 from java.awt import Color
@@ -40,6 +41,17 @@ try:
 except ImportError:
     pass
 
+
+REGEX_DICT = {
+    "URI Schemes": {
+        "regex": "[a-zA-Z0-9-]*://[a-zA-Z0-9_./-]+",
+        "detail": "Extract all URI schemes."
+    },
+    "Google API Key": {
+        "regex": "AIza[0-9A-Za-z-_]{35}",
+        "detail": "Get Google API Key."
+    },
+}
 
 REGEX_TABLE = []
 
@@ -61,15 +73,23 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self._requestViewer = self._callbacks.createMessageEditor(self, False)
         self._responseViewer = self._callbacks.createMessageEditor(self, False)        
 
-        self.regexTableData = [
-            [1, "URI Schemes", "([a-zA-Z0-9-]*://[a-zA-Z0-9_./-]+)"],
-            [2, "2nd rule", "url="],
-            [3, "3rd rule", "<a link="],
-            [4, "4rd rule", "Sec"]
-        ]
+        # self.regexTableData = [
+        #     [1, "URI Schemes", "([a-zA-Z0-9-]*://[a-zA-Z0-9_./-]+)"],
+        #     [2, "2nd rule", "url="],
+        #     [3, "3rd rule", "<a link="],
+        #     [4, "4rd rule", "Sec"]
+        # ]
+  
         global REGEX_TABLE
+        self.regexTableData = []
+        for key,value in REGEX_DICT.items():
+            tmp = [v for v in value.values()]
+            tmp.insert(0, key)
+            tmp.insert(0, len(self.regexTableData))
+            print(tmp)
+            self.regexTableData.append(tmp)
         REGEX_TABLE = self.regexTableData
-        
+
         self.regexTableColumns = ["#", "Rule Name", "Regex"]
         self.entryTableColumns = ["Tool", "URI"]        
 
@@ -138,7 +158,6 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
 
     def processRegex(self, lines, lineMatched, valueMatched):
         global REGEX_TABLE
-        
         for line in lines:
             for regex in REGEX_TABLE:
                 resultRegex = re.findall("{}".format(regex[2]), line)
@@ -391,48 +410,15 @@ class RegexTableModel(DefaultTableModel):
         return columnClasses[column]
 
 
-class RegexTableMouseListener(MouseListener):
-
-    def getClickedIndex(self, event):
-        eventTable = event.getSource()
-        row = eventTable.getSelectedRow()
-        return eventTable.getValueAt(row, 0)
-
-    def getClickedRow(self, event):
-        eventTable = event.getSource()
-        return eventTable.getModel().getDataVector().elementAt(eventTable.getSelectedRow())
-
-    def mouseClicked(self, event):
-        if event.getClickCount() == 1:
-            print("Single-click: {}".format(self.getClickedRow(event)))
-        elif event.getClickCount() == 2:
-            print("Double-click: {}".format(self.getClickedRow(event)))
-            tbl = event.getSource()
-            tbl.addRow([11, "dblclick-name", "dblclick-severity"])
-        else:
-            print("Another element: {}".format(event))
-
-    def mouseEntered(self, event):
-        pass
-
-    def mouseExited(self, event):
-        pass
-
-    def mousePressed(self, event):
-        pass
-
-    def mouseReleased(self, event):
-        pass
-
-
 class RegexTable(JTable):
 
     def __init__(self, extender):
         model = RegexTableModel(extender.regexTableData, extender.regexTableColumns)
         self.setModel(model)
-        self.setAutoCreateRowSorter(True)
+        sorter = TableRowSorter(model)
+        self.setRowSorter(sorter)
+        # self.setAutoCreateRowSorter(True)
         self.getTableHeader().setReorderingAllowed(False)
-        # self.addMouseListener(RegexTableMouseListener())
 
     def addRow(self, data):
         self.getModel().addRow(data)
@@ -449,7 +435,9 @@ class EntryTable(JTable):
     def __init__(self, extender):
         self._extender = extender
         self.setModel(extender)
-        self.setAutoCreateRowSorter(True)
+        sorter = TableRowSorter(extender)
+        self.setRowSorter(sorter)
+        # self.setAutoCreateRowSorter(True)
         self.getTableHeader().setReorderingAllowed(False)
 
     def changeSelection(self, row, col, toggle, extend):
