@@ -27,7 +27,6 @@ from javax.swing import JTextArea
 from javax.swing import JTextField
 from javax.swing.table import DefaultTableModel
 from javax.swing.table import AbstractTableModel
-from javax.swing.table import TableRowSorter
 
 from java.util import ArrayList;
 from java.awt import Color
@@ -86,12 +85,9 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
             tmp = [v for v in value.values()]
             tmp.insert(0, key)
             tmp.insert(0, len(self.regexTableData))
-            print(tmp)
             self.regexTableData.append(tmp)
         REGEX_TABLE = self.regexTableData
-
         self.regexTableColumns = ["#", "Rule Name", "Regex"]
-        self.entryTableColumns = ["Tool", "URI"]        
 
         try:
             sys.stdout = callbacks.getStdout()
@@ -167,6 +163,8 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
                             valueMatched.append(result)
                     if line not in lineMatched:
                         lineMatched.append(line)
+                REGEX_DICT[regex[1]]['valueMatched'] = valueMatched
+                REGEX_DICT[regex[1]]['lineMatched'] = lineMatched        
 
     def getRowCount(self):
         try:
@@ -187,6 +185,10 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         if columnIndex == 3:
             return "URI"
         return ""
+
+    def getColumnClass(self, columnIndex):
+        columnClasses = [Integer, String, String, String]
+        return columnClasses[columnIndex]
 
     def getValueAt(self, rowIndex, columnIndex):
         logEntry = self._log.get(rowIndex)
@@ -389,11 +391,29 @@ class RegexerGUIEdit(JFrame):
             self.jTableRegex.setValueAt(self.jTextFieldRuleName.getText(), rowIndex, 1) # Rule Name column
             self.jTableRegex.setValueAt(self.jTextFieldRegex.getText(), rowIndex, 2) # Regex Rule column
             REGEX_TABLE = self.jTableRegex.getModel().getDataVector()
-            print(REGEX_TABLE)
             self.dispose()
 
     def closeRegexerGUIEdit(self, event):
         self.dispose()
+
+
+class RegexTable(JTable):
+
+    def __init__(self, extender):
+        model = RegexTableModel(extender.regexTableData, extender.regexTableColumns)
+        self.setModel(model)
+        self.setAutoCreateRowSorter(True)
+        self.getTableHeader().setReorderingAllowed(False)
+        self.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+
+    def addRow(self, data):
+        self.getModel().addRow(data)
+
+    def removeRow(self, row):
+        self.getModel().removeRow(row)
+
+    def setValueAt(self, value, row, column):
+        self.getModel().setValueAt(value, row, column)
 
 
 class RegexTableModel(DefaultTableModel):
@@ -410,34 +430,12 @@ class RegexTableModel(DefaultTableModel):
         return columnClasses[column]
 
 
-class RegexTable(JTable):
-
-    def __init__(self, extender):
-        model = RegexTableModel(extender.regexTableData, extender.regexTableColumns)
-        self.setModel(model)
-        sorter = TableRowSorter(model)
-        self.setRowSorter(sorter)
-        # self.setAutoCreateRowSorter(True)
-        self.getTableHeader().setReorderingAllowed(False)
-
-    def addRow(self, data):
-        self.getModel().addRow(data)
-
-    def removeRow(self, row):
-        self.getModel().removeRow(row)
-
-    def setValueAt(self, value, row, column):
-        self.getModel().setValueAt(value, row, column)
-
-
 class EntryTable(JTable):
 
     def __init__(self, extender):
         self._extender = extender
         self.setModel(extender)
-        sorter = TableRowSorter(extender)
-        self.setRowSorter(sorter)
-        # self.setAutoCreateRowSorter(True)
+        self.setAutoCreateRowSorter(True)
         self.getTableHeader().setReorderingAllowed(False)
 
     def changeSelection(self, row, col, toggle, extend):
@@ -447,7 +445,7 @@ class EntryTable(JTable):
         self._extender._jTextAreaLineMatched.setText("\n".join(str(line).encode("utf-8").strip() for line in logEntry._lineMatched))
         self._extender._jTextAreaValueMatched.setText("\n".join(str(value).encode("utf-8").strip() for value in logEntry._valueMatched))
         self._extender._currentlyDisplayedItem = logEntry._requestResponse
-        JTable.changeSelection(self, row, col, toggle, extend)
+        JTable.changeSelection(self, row, col, toggle, extend)      
 
 
 class LogEntry:
