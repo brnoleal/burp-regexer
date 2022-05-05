@@ -79,23 +79,16 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self._requestViewer = self._callbacks.createMessageEditor(self, False)
         self._responseViewer = self._callbacks.createMessageEditor(self, False)        
 
-
-        # self.regexTableData = [
-        #     [1, "URI Schemes", "([a-zA-Z0-9-]*://[a-zA-Z0-9_./-]+)"],
-        #     [2, "2nd rule", "url="],
-        #     [3, "3rd rule", "<a link="],
-        #     [4, "4rd rule", "Sec"]
-        # ]
-  
-        global REGEX_TABLE
         self.regexTableData = []
+        self.regexTableColumns = ["#", "Rule Name", "Regex"]
         for key,value in REGEX_DICT.items():
             tmp = [v for v in value.values()]
             tmp.insert(0, key)
             tmp.insert(0, len(self.regexTableData))
             self.regexTableData.append(tmp)
+        
+        global REGEX_TABLE
         REGEX_TABLE = self.regexTableData
-        self.regexTableColumns = ["#", "Rule Name", "Regex"]
         
         try:
             sys.stdout = callbacks.getStdout()
@@ -271,7 +264,7 @@ class RegexerGUI(JFrame):
         self.jScrollPaneDetails.setViewportView(self._extender._jTextAreaDetails)
         self.jTabbedPane2.addTab("Details", self.jScrollPaneDetails)
 
-        self.jTabbedPane2.addChangeListener(JTabbedPane2ChangeListener(self._extender, self.jTableRegex)) #############
+        self.jTabbedPane2.addChangeListener(JTabbedPane2ChangeListener(self._extender, self.jTableRegex))
 
         self.jSplitPane2.setLeftComponent(self.jScrollPaneTableEntry)
         self.jSplitPane2.setRightComponent(self.jTabbedPane)
@@ -339,8 +332,6 @@ class JTabbedPane2ChangeListener(ChangeListener):
         
         if title == "All Results":
             key = self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 1)
-            print(key)
-            print(REGEX_DICT[key])
             if 'valueMatched' in REGEX_DICT[key] and  REGEX_DICT[key]['valueMatched'] != []:                
                 self._extender._jTextAreaAllResults.setText(
                     "\n".join(str(line).encode("utf-8").strip() for line in REGEX_DICT[key]['valueMatched'])
@@ -503,13 +494,7 @@ class RegexTableMouseListener(MouseListener):
         return regexTable.getValueAt(row, 0)
 
     def mouseClicked(self, event):
-        if event.getClickCount() == 1:
-            print("single-click. clicked index: {}").format(self.getClickedIndex(event))
-            clickedRow = self.getClickedRow(event)
-            print(clickedRow)
-        
-        key = clickedRow[1]
-        print(key)
+        key = self.getClickedRow(event)[1]
         if 'valueMatched' in REGEX_DICT[key] and  REGEX_DICT[key]['valueMatched'] != []:                
             self._extender._jTextAreaAllResults.setText(
                 "\n".join(str(line).encode("utf-8").strip() for line in REGEX_DICT[key]['valueMatched'])
