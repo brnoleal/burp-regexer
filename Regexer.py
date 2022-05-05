@@ -147,20 +147,17 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
             if 'logEntry' not in REGEX_DICT[key]:
                 REGEX_DICT[key]['logEntry'] = ArrayList()
             
+            valueMatched = []
+            lineMatched = []
             for line in lines:
                 resultRegex = re.findall("{}".format(regexPattern), line)
                 if resultRegex:
                     insertMessage = True
-
-                    valueMatched = REGEX_DICT[key]['valueMatched']
-                    lineMatched = REGEX_DICT[key]['lineMatched']
+                    if line not in lineMatched:
+                        lineMatched.append(line)                    
                     for result in resultRegex:
                         if result not in valueMatched:
                             valueMatched.append(result)        
-                        if line not in lineMatched:
-                            lineMatched.append(line)                     
-                    REGEX_DICT[key]['valueMatched'] = valueMatched
-                    REGEX_DICT[key]['lineMatched'] = lineMatched
                     
             if insertMessage:
                 logEntries = REGEX_DICT[key]['logEntry']
@@ -177,6 +174,9 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
                     valueMatched)
                 if logEntry not in logEntries:
                     REGEX_DICT[key]['logEntry'].add(logEntry)                          
+
+            REGEX_DICT[key]['valueMatched'] += valueMatched
+            REGEX_DICT[key]['lineMatched'] += lineMatched
 
     def getRowCount(self):
         try:
@@ -344,7 +344,7 @@ class JTabbedPane2ChangeListener(ChangeListener):
                 key = self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 1)
                 if 'valueMatched' in REGEX_DICT[key] and  REGEX_DICT[key]['valueMatched'] != []:                
                     self._extender._jTextAreaAllResults.setText(
-                        "\n".join(str(line).encode("utf-8").strip() for line in REGEX_DICT[key]['valueMatched'])
+                        "\n".join(str(line).encode("utf-8").strip() for line in list(set(REGEX_DICT[key]['valueMatched'])))
                     )
                 else: 
                     REGEX_DICT[key]['valueMatched'] = []
@@ -527,7 +527,6 @@ class RegexTableMouseListener(MouseListener):
                 self._extender._responseViewer.setMessage("None", True)
                 self._extender._jTextAreaLineMatched.setText("None")
                 self._extender._jTextAreaValueMatched.setText("None")
-                self._extender._currentlyDisplayedItem = logEntry._requestResponse                      
         else:
             print("logEntry == False")
             print(REGEX_DICT[key])
@@ -535,7 +534,7 @@ class RegexTableMouseListener(MouseListener):
 
         if 'valueMatched' in REGEX_DICT[key] and  REGEX_DICT[key]['valueMatched'] != []:                
             self._extender._jTextAreaAllResults.setText(
-                "\n".join(str(line).encode("utf-8").strip() for line in REGEX_DICT[key]['valueMatched'])
+                "\n".join(str(line).encode("utf-8").strip() for line in list(set(REGEX_DICT[key]['valueMatched'])))
             )
         else: 
             REGEX_DICT[key]['valueMatched'] = []
