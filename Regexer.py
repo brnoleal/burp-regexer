@@ -348,7 +348,7 @@ class JTabbedPane2ChangeListener(ChangeListener):
                     )
                 else: 
                     REGEX_DICT[key]['valueMatched'] = []
-                    self._extender._jTextAreaAllResults.setText("Not results found for '{}' regex.".format(key))
+                    self._extender._jTextAreaAllResults.setText("No results found for '{}' regex.".format(key))
             except:
                 self._extender._jTextAreaAllResults.setText("Select one rule from regex table to show it's results.")
 
@@ -513,15 +513,25 @@ class RegexTableMouseListener(MouseListener):
         key = self.getClickedRow(event)[1]
         
         if 'logEntry' in REGEX_DICT[key]:
-            print("logEntry == True")
-            print(len(REGEX_DICT[key]['logEntry']))
             self._extender._log = REGEX_DICT[key]['logEntry']
             self._jTableEntry.getModel().fireTableDataChanged()
+            try:
+                logEntry = self._extender._log.get(0)
+                self._extender._requestViewer.setMessage(logEntry._requestResponse.getRequest(), True)
+                self._extender._responseViewer.setMessage(logEntry._requestResponse.getResponse(), True)
+                self._extender._jTextAreaLineMatched.setText("\n".join(str(line).encode("utf-8").strip() for line in logEntry._lineMatched))
+                self._extender._jTextAreaValueMatched.setText("\n".join(str(value).encode("utf-8").strip() for value in logEntry._valueMatched))
+                self._extender._currentlyDisplayedItem = logEntry._requestResponse       
+            except:
+                self._extender._requestViewer.setMessage("None", True)
+                self._extender._responseViewer.setMessage("None", True)
+                self._extender._jTextAreaLineMatched.setText("None")
+                self._extender._jTextAreaValueMatched.setText("None")
+                self._extender._currentlyDisplayedItem = logEntry._requestResponse                      
         else:
             print("logEntry == False")
             print(REGEX_DICT[key])
             REGEX_DICT[key]['logEntry'] = ArrayList()
-        
 
         if 'valueMatched' in REGEX_DICT[key] and  REGEX_DICT[key]['valueMatched'] != []:                
             self._extender._jTextAreaAllResults.setText(
@@ -529,7 +539,7 @@ class RegexTableMouseListener(MouseListener):
             )
         else: 
             REGEX_DICT[key]['valueMatched'] = []
-            self._extender._jTextAreaAllResults.setText("Not results found for '{}' regex.".format(key))
+            self._extender._jTextAreaAllResults.setText("No results found for '{}' regex.".format(key))
 
     def mousePressed(self, event):
         pass
