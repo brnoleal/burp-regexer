@@ -326,7 +326,7 @@ class RegexerGUI(JFrame):
     def handleJButtonRemove(self, event):
         if(self.jTableRegex.getSelectedRow() != -1):
             self.jTableRegex.removeRow(self.jTableRegex.getSelectedRow())
-            JOptionPane.showMessageDialog(None, "Selected row deleted successfully")
+            JOptionPane.showMessageDialog(None, "Selected row successfully deleted!")
 
 
 class JTabbedPane2ChangeListener(ChangeListener):
@@ -343,14 +343,28 @@ class JTabbedPane2ChangeListener(ChangeListener):
             try:
                 key = self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 1)
                 if 'valueMatched' in REGEX_DICT[key] and  REGEX_DICT[key]['valueMatched'] != []:                
-                    self._extender._jTextAreaAllResults.setText(
-                        "\n".join(str(line).encode("utf-8").strip() for line in list(set(REGEX_DICT[key]['valueMatched'])))
-                    )
+                    self._extender._jTextAreaAllResults.setText("\n".join(str(line).encode("utf-8").strip() for line in list(set(REGEX_DICT[key]['valueMatched']))))
                 else: 
                     REGEX_DICT[key]['valueMatched'] = []
                     self._extender._jTextAreaAllResults.setText("No results found for '{}' regex.".format(key))
             except:
                 self._extender._jTextAreaAllResults.setText("Select one rule from regex table to show it's results.")
+        
+        if title == "Details":
+            try:
+                key = self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 1)
+                regex = self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 2)            
+                length = len(REGEX_DICT[key]['valueMatched'])
+                details = '''
+                    {} results found for this regex.\n
+                    \nRule name: 
+                    {}
+                    \nRegex: 
+                    {}
+                    '''.format(length, key, regex)
+                self._extender._jTextAreaDetails.setText(details)
+            except:
+                self._extender._jTextAreaDetails.setText("Select one rule from regex table to show it's results.")
 
 
 class RegexerGUIEdit(JFrame):
@@ -434,7 +448,10 @@ class RegexerGUIEdit(JFrame):
         key =  self.jTextFieldkey.getText()
         regex = self.jTextFieldRegex.getText()
         if self._event.source.text == "Add":
-            lastIndex = self.jTableRegex.getValueAt(self.jTableRegex.getRowCount()-1, 0)
+            try:
+                lastIndex = self.jTableRegex.getValueAt(self.jTableRegex.getRowCount()-1, 0)
+            except:
+                lastIndex = 0
             self.jTableRegex.addRow([lastIndex + 1, key, regex])            
             REGEX_TABLE = self.jTableRegex.getModel().getDataVector()
             self.updateRegexDict(key, regex)
@@ -511,6 +528,7 @@ class RegexTableMouseListener(MouseListener):
 
     def mouseClicked(self, event):
         key = self.getClickedRow(event)[1]
+        regex = self.getClickedRow(event)[2]  
         
         if 'logEntry' in REGEX_DICT[key]:
             self._extender._log = REGEX_DICT[key]['logEntry']
@@ -528,17 +546,33 @@ class RegexTableMouseListener(MouseListener):
                 self._extender._jTextAreaLineMatched.setText("None")
                 self._extender._jTextAreaValueMatched.setText("None")
         else:
-            print("logEntry == False")
-            print(REGEX_DICT[key])
             REGEX_DICT[key]['logEntry'] = ArrayList()
 
-        if 'valueMatched' in REGEX_DICT[key] and  REGEX_DICT[key]['valueMatched'] != []:                
-            self._extender._jTextAreaAllResults.setText(
-                "\n".join(str(line).encode("utf-8").strip() for line in list(set(REGEX_DICT[key]['valueMatched'])))
-            )
-        else: 
-            REGEX_DICT[key]['valueMatched'] = []
-            self._extender._jTextAreaAllResults.setText("No results found for '{}' regex.".format(key))
+        try:
+            if 'valueMatched' in REGEX_DICT[key] and  REGEX_DICT[key]['valueMatched'] != []:                
+                self._extender._jTextAreaAllResults.setText(
+                    "\n".join(str(line).encode("utf-8").strip() for line in list(set(REGEX_DICT[key]['valueMatched'])))
+                )
+            else: 
+                REGEX_DICT[key]['valueMatched'] = []
+                self._extender._jTextAreaAllResults.setText("No results found for '{}' regex.".format(key))
+        except:
+            self._extender._jTextAreaAllResults.setText("Select one rule from regex table to show it's results.")
+           
+        try:
+            length = len(REGEX_DICT[key]['valueMatched'])
+            uniq = len(list(set(REGEX_DICT[key]['valueMatched'])))
+            details = '''
+                {} results found for this regex.\n
+                {} uniq results show in 'All Results' tab.\n
+                \nRule name: 
+                {}
+                \nRegex: 
+                {}
+                '''.format(length, uniq, key, regex)
+            self._extender._jTextAreaDetails.setText(details)
+        except:
+            self._extender._jTextAreaDetails.setText("Select one rule from regex table to show it's results.")            
 
     def mousePressed(self, event):
         pass
