@@ -45,7 +45,7 @@ except ImportError:
 REGEX_DICT = {
     "URI Schemes": {
         "regex": "[a-zA-Z0-9-]*://[a-zA-Z0-9_./-]+",
-        "detail": "Extract all URI schemes."
+        "detail": "Extract all URI schemes.",
     },
     "Google API Key": {
         "regex": "AIza[0-9A-Za-z-_]{35}",
@@ -73,8 +73,6 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self._jTextAreaAllResults.setEditable(False)
         self._jTextAreaDetails = JTextArea()
         self._jTextAreaDetails.setEditable(False)
-
-        self._jTableRegex = RegexTable
         
         self._requestViewer = self._callbacks.createMessageEditor(self, False)
         self._responseViewer = self._callbacks.createMessageEditor(self, False)        
@@ -112,25 +110,10 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
             return
 
         self._lock.acquire()
-        row = self._log.size()
-        url = self._helpers.analyzeRequest(messageInfo).getUrl()
-        method = self._helpers.analyzeRequest(messageInfo).getHeaders()[0].split(" ")[0]
-        lineMatched, valueMatched = self.processMessage(self._callbacks.saveBuffersToTempFiles(messageInfo))
-        if lineMatched or valueMatched:
-            self._log.add(LogEntry(row, 
-                                    toolFlag, 
-                                    self._callbacks.saveBuffersToTempFiles(messageInfo), 
-                                    url, 
-                                    method,
-                                    lineMatched,
-                                    valueMatched))
-            self.fireTableRowsInserted(row, row)
+        self.processMessage(toolFlag, self._callbacks.saveBuffersToTempFiles(messageInfo))
         self._lock.release()   
 
-    def processMessage(self, messageInfo):
-        lineMatched = []
-        valueMatched = []
-
+    def processMessage(self, toolFlag, messageInfo):
         requestInfo = self._helpers.analyzeRequest(messageInfo.getRequest())
         requestHeader = requestInfo.getHeaders()
         requestBody = messageInfo.getRequest()[(requestInfo.getBodyOffset()):].tostring()
@@ -141,32 +124,59 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
 
         if requestHeader or responseHeader:
             headers = requestHeader + responseHeader
-            self.processRegex(headers, lineMatched, valueMatched)
+            self.processRegex(toolFlag, messageInfo, headers)
 
         if requestBody:
             requestLines = [line + '\n' for line in requestBody.split('\n')]
-            self.processRegex(requestLines, lineMatched, valueMatched)
+            self.processRegex(toolFlag, messageInfo, requestLines)
 
         if responseBody:
             responseLines = [line + '\n' for line in responseBody.split('\n')]
-            self.processRegex(responseLines, lineMatched, valueMatched)
+            self.processRegex(toolFlag, messageInfo, responseLines)
 
-        return lineMatched, valueMatched
+    def processRegex(self, toolFlag, messageInfo, lines):
+        for regex in REGEX_TABLE:
+            key = regex[1]
+            regexPattern = regex[2]
+            insertMessage = False
 
-    def processRegex(self, lines, lineMatched, valueMatched):
-        for line in lines:
-            for regex in REGEX_TABLE:
-                resultRegex = re.findall("{}".format(regex[2]), line)
+            if 'valueMatched' not in REGEX_DICT[key]:
+                REGEX_DICT[key]['valueMatched'] = []
+            if 'lineMatched' not in REGEX_DICT[key]:
+                REGEX_DICT[key]['lineMatched'] = []                        
+            if 'logEntry' not in REGEX_DICT[key]:
+                REGEX_DICT[key]['logEntry'] = ArrayList()
+            
+            for line in lines:
+                resultRegex = re.findall("{}".format(regexPattern), line)
                 if resultRegex:
-                    if 'valueMatched' not in REGEX_DICT[regex[1]]:
-                        REGEX_DICT[regex[1]]['valueMatched'] = []
+                    insertMessage = True
+
+                    valueMatched = REGEX_DICT[key]['valueMatched']
+                    lineMatched = REGEX_DICT[key]['lineMatched']
                     for result in resultRegex:
                         if result not in valueMatched:
-                            valueMatched.append(result)                        
-                        if result not in REGEX_DICT[regex[1]]['valueMatched']:
-                            REGEX_DICT[regex[1]]['valueMatched'].append(result)
-                    if line not in lineMatched:
-                        lineMatched.append(line)       
+                            valueMatched.append(result)        
+                        if line not in lineMatched:
+                            lineMatched.append(line)                     
+                    REGEX_DICT[key]['valueMatched'] = valueMatched
+                    REGEX_DICT[key]['lineMatched'] = lineMatched
+                    
+            if insertMessage:
+                logEntries = REGEX_DICT[key]['logEntry']
+                row = len(logEntries)
+                url = self._helpers.analyzeRequest(messageInfo).getUrl()
+                method = self._helpers.analyzeRequest(messageInfo).getHeaders()[0].split(" ")[0]
+                logEntry = LogEntry(
+                    row, 
+                    toolFlag, 
+                    self._callbacks.saveBuffersToTempFiles(messageInfo), 
+                    url, 
+                    method,
+                    lineMatched,
+                    valueMatched)
+                if logEntry not in logEntries:
+                    REGEX_DICT[key]['logEntry'].add(logEntry)                          
 
     def getRowCount(self):
         try:
@@ -239,12 +249,11 @@ class RegexerGUI(JFrame):
         self.jButtonCopy = JButton("Copy")
         self.jButtonClear = JButton("Clear")
 
-        self.jTableRegex = RegexTable(extender)
-
-        self.jScrollPaneTableRegex.setViewportView(self.jTableRegex)
-
         self.jTableEntry = EntryTable(self._extender)
         self.jScrollPaneTableEntry.setViewportView(self.jTableEntry)
+
+        self.jTableRegex = RegexTable(self._extender, self.jTableEntry)
+        self.jScrollPaneTableRegex.setViewportView(self.jTableRegex)
 
         self.jTabbedPane.addTab("Request", self._extender._requestViewer.getComponent())
 
@@ -264,7 +273,7 @@ class RegexerGUI(JFrame):
         self.jScrollPaneDetails.setViewportView(self._extender._jTextAreaDetails)
         self.jTabbedPane2.addTab("Details", self.jScrollPaneDetails)
 
-        self.jTabbedPane2.addChangeListener(JTabbedPane2ChangeListener(self._extender, self.jTableRegex))
+        self.jTabbedPane2.addChangeListener(JTabbedPane2ChangeListener(self._extender, self.jTableRegex)) 
 
         self.jSplitPane2.setLeftComponent(self.jScrollPaneTableEntry)
         self.jSplitPane2.setRightComponent(self.jTabbedPane)
@@ -331,14 +340,17 @@ class JTabbedPane2ChangeListener(ChangeListener):
         title = tab.getTitleAt(index)
         
         if title == "All Results":
-            key = self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 1)
-            if 'valueMatched' in REGEX_DICT[key] and  REGEX_DICT[key]['valueMatched'] != []:                
-                self._extender._jTextAreaAllResults.setText(
-                    "\n".join(str(line).encode("utf-8").strip() for line in REGEX_DICT[key]['valueMatched'])
-                )
-            else: 
-                REGEX_DICT[key]['valueMatched'] = []
-                self._extender._jTextAreaAllResults.setText("Not results found for '{}' pattern!".format(key))
+            try:
+                key = self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 1)
+                if 'valueMatched' in REGEX_DICT[key] and  REGEX_DICT[key]['valueMatched'] != []:                
+                    self._extender._jTextAreaAllResults.setText(
+                        "\n".join(str(line).encode("utf-8").strip() for line in REGEX_DICT[key]['valueMatched'])
+                    )
+                else: 
+                    REGEX_DICT[key]['valueMatched'] = []
+                    self._extender._jTextAreaAllResults.setText("Not results found for '{}' regex.".format(key))
+            except:
+                self._extender._jTextAreaAllResults.setText("Select one rule from regex table to show it's results.")
 
 
 class RegexerGUIEdit(JFrame):
@@ -356,21 +368,21 @@ class RegexerGUIEdit(JFrame):
         self.jLabel3 = JLabel()
         self.jLabel3.setText("Regex:")
 
-        self.jTextFieldRuleName = JTextField()
+        self.jTextFieldkey = JTextField()
         self.jTextFieldRegex = JTextField()
 
         if event.source.text == "Add":
             self.setTitle("Add Regex Rule")
         elif event.source.text == "Edit":
             self.setTitle("Edit Regex Rule")
-            self.jTextFieldRuleName.setText(self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 1))
+            self.jTextFieldkey.setText(self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 1))
             self.jTextFieldRegex.setText(self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 2))
         
         self.jButtonOK = JButton("OK", actionPerformed=self.addEditRegex)
         self.jButtonCancel = JButton("Cancel", actionPerformed=self.closeRegexerGUIEdit)
 
-        self.jTextFieldRuleName.setToolTipText("")
-        self.jTextFieldRuleName.setBorder(BorderFactory.createLineBorder(Color.lightGray));
+        self.jTextFieldkey.setToolTipText("")
+        self.jTextFieldkey.setBorder(BorderFactory.createLineBorder(Color.lightGray));
         self.jTextFieldRegex.setToolTipText("")
         self.jTextFieldRegex.setBorder(BorderFactory.createLineBorder(Color.lightGray));
         
@@ -393,7 +405,7 @@ class RegexerGUIEdit(JFrame):
                                 .addComponent(self.jLabel3))
                             .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
                             .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING, False)
-                                .addComponent(self.jTextFieldRuleName)
+                                .addComponent(self.jTextFieldkey)
                                 .addComponent(self.jTextFieldRegex, GroupLayout.DEFAULT_SIZE, 382, Short.MAX_VALUE)))))
                 .addContainerGap(20, Short.MAX_VALUE))
         )
@@ -405,7 +417,7 @@ class RegexerGUIEdit(JFrame):
                 .addGap(18, 18, 18)
                 .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
                     .addComponent(self.jLabel2)
-                    .addComponent(self.jTextFieldRuleName, GroupLayout.PREFERRED_SIZE, 24, GroupLayout.PREFERRED_SIZE))
+                    .addComponent(self.jTextFieldkey, GroupLayout.PREFERRED_SIZE, 24, GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
                     .addComponent(self.jLabel3)
@@ -419,26 +431,27 @@ class RegexerGUIEdit(JFrame):
 
     def addEditRegex(self, event):
         global REGEX_TABLE
+        key =  self.jTextFieldkey.getText()
+        regex = self.jTextFieldRegex.getText()
         if self._event.source.text == "Add":
             lastIndex = self.jTableRegex.getValueAt(self.jTableRegex.getRowCount()-1, 0)
-            self.jTableRegex.addRow([lastIndex + 1, self.jTextFieldRuleName.getText(), self.jTextFieldRegex.getText()])            
+            self.jTableRegex.addRow([lastIndex + 1, key, regex])            
             REGEX_TABLE = self.jTableRegex.getModel().getDataVector()
-            self.updateRegexDict()
+            self.updateRegexDict(key, regex)
             self.dispose()
         elif self._event.source.text == "Edit":
             rowIndex = self.jTableRegex.getSelectedRow()
-            self.jTableRegex.setValueAt(self.jTextFieldRuleName.getText(), rowIndex, 1)
-            self.jTableRegex.setValueAt(self.jTextFieldRegex.getText(), rowIndex, 2)
+            self.jTableRegex.setValueAt(key, rowIndex, 1)
+            self.jTableRegex.setValueAt(regex, rowIndex, 2)
             REGEX_TABLE = self.jTableRegex.getModel().getDataVector()
-            self.updateRegexDict()
+            self.updateRegexDict(key, regex)
             self.dispose()
 
-    def updateRegexDict(self):
-        REGEX_DICT = {}
-        for regex in REGEX_TABLE:
-            key = regex[1]
-            value = regex[2]
-            REGEX_DICT[key] = value
+    def updateRegexDict(self, key, regex):
+        if key not in REGEX_DICT:
+            REGEX_DICT[key] = {}
+        else: 
+            REGEX_DICT[key]['regex'] = regex
 
     def closeRegexerGUIEdit(self, event):
         self.dispose()
@@ -446,14 +459,16 @@ class RegexerGUIEdit(JFrame):
 
 class RegexTable(JTable):
 
-    def __init__(self, extender):
+    def __init__(self, extender, jTableEntry):
         self._extender = extender
+        self._jTableEntry = jTableEntry
         model = RegexTableModel(self._extender.regexTableData, self._extender.regexTableColumns)
+
         self.setModel(model)
         self.setAutoCreateRowSorter(True)
         self.getTableHeader().setReorderingAllowed(False)
         self.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
-        self.addMouseListener(RegexTableMouseListener(self._extender))
+        self.addMouseListener(RegexTableMouseListener(self._extender, self._jTableEntry))
 
     def addRow(self, data):
         self.getModel().addRow(data)
@@ -481,8 +496,9 @@ class RegexTableModel(DefaultTableModel):
 
 class RegexTableMouseListener(MouseListener):
     
-    def __init__(self, extender):
+    def __init__(self, extender, jTableEntry):
         self._extender = extender
+        self._jTableEntry = jTableEntry
 
     def getClickedRow(self, event):
         regexTable = event.getSource()
@@ -495,13 +511,25 @@ class RegexTableMouseListener(MouseListener):
 
     def mouseClicked(self, event):
         key = self.getClickedRow(event)[1]
+        
+        if 'logEntry' in REGEX_DICT[key]:
+            print("logEntry == True")
+            print(len(REGEX_DICT[key]['logEntry']))
+            self._extender._log = REGEX_DICT[key]['logEntry']
+            self._jTableEntry.getModel().fireTableDataChanged()
+        else:
+            print("logEntry == False")
+            print(REGEX_DICT[key])
+            REGEX_DICT[key]['logEntry'] = ArrayList()
+        
+
         if 'valueMatched' in REGEX_DICT[key] and  REGEX_DICT[key]['valueMatched'] != []:                
             self._extender._jTextAreaAllResults.setText(
                 "\n".join(str(line).encode("utf-8").strip() for line in REGEX_DICT[key]['valueMatched'])
             )
         else: 
             REGEX_DICT[key]['valueMatched'] = []
-            self._extender._jTextAreaAllResults.setText("Not results found for '{}' pattern!".format(key))
+            self._extender._jTextAreaAllResults.setText("Not results found for '{}' regex.".format(key))
 
     def mousePressed(self, event):
         pass
@@ -531,7 +559,7 @@ class EntryTable(JTable):
         self._extender._jTextAreaLineMatched.setText("\n".join(str(line).encode("utf-8").strip() for line in logEntry._lineMatched))
         self._extender._jTextAreaValueMatched.setText("\n".join(str(value).encode("utf-8").strip() for value in logEntry._valueMatched))
         self._extender._currentlyDisplayedItem = logEntry._requestResponse
-        JTable.changeSelection(self, row, col, toggle, extend)      
+        JTable.changeSelection(self, row, col, toggle, extend)  
 
 
 class LogEntry:
@@ -543,6 +571,14 @@ class LogEntry:
         self._method = method
         self._lineMatched = lineMatched
         self._valueMatched = valueMatched
+
+
+class RegexEntry:
+    def __init__(self, index, key, regex, logEntry):
+        self._index = index
+        self._key = key
+        self._regex = regex
+        self._logEntry = logEntry
 
 
 # support for burp-exceptions
