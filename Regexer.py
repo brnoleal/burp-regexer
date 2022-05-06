@@ -45,7 +45,7 @@ except ImportError:
 
 REGEX_DICT = {
     "URI Schemes": {
-        "regex": "[a-zA-Z0-9-]*://[a-zA-Z0-9_./-]+",
+        "regex": "[a-zA-Z0-9-]*://[a-zA-Z0-9?=&\[\]:%_./-]+",
         "detail": "Extract all URI schemes.",
     },
     "Google API Key": {
@@ -60,6 +60,7 @@ REGEX_TABLE = []
 class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController, AbstractTableModel):
 
     def registerExtenderCallbacks(self, callbacks):
+        print("Regexer v1.0")
 
         self._callbacks = callbacks
         self._helpers = callbacks.getHelpers()
@@ -88,15 +89,15 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         
         global REGEX_TABLE
         REGEX_TABLE = self.regexTableData
-        
-        try:
-            sys.stdout = callbacks.getStdout()
-        except:
-            pass
+    
+        self._callbacks.setExtensionName("Regexer")
+        self._callbacks.addSuiteTab(self)
+        self._callbacks.registerHttpListener(self)
 
-        callbacks.setExtensionName("Regexer")
-        callbacks.addSuiteTab(self)
-        callbacks.registerHttpListener(self)
+        print("Processing proxy history, please wait...")
+        self.processProxyHistory()
+        print("Done!")
+        
         return
 
     def getTabCaption(self):
@@ -109,12 +110,21 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
     def processHttpMessage(self, toolFlag, messageIsRequest, messageInfo):
         if messageIsRequest:
             return
-
         self._lock.acquire()
         self.processMessage(toolFlag, self._callbacks.saveBuffersToTempFiles(messageInfo))
         self._lock.release()   
 
+    def processProxyHistory(self):
+        proxyHistory = self._callbacks.getProxyHistory()
+        for messageInfo in proxyHistory:
+            self._lock.acquire()
+            self.processMessage(4, self._callbacks.saveBuffersToTempFiles(messageInfo))
+            self._lock.release()   
+
     def processMessage(self, toolFlag, messageInfo):
+        if not messageInfo.getResponse():
+            return 
+
         requestInfo = self._helpers.analyzeRequest(messageInfo.getRequest())
         requestHeader = requestInfo.getHeaders()
         requestBody = messageInfo.getRequest()[(requestInfo.getBodyOffset()):].tostring()
@@ -125,15 +135,20 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
 
         if requestHeader or responseHeader:
             headers = requestHeader + responseHeader
-            self.processRegex(toolFlag, messageInfo, headers)
+        else:
+            headers = []
 
         if requestBody:
             requestLines = [line + '\n' for line in requestBody.split('\n')]
-            self.processRegex(toolFlag, messageInfo, requestLines)
+        else:
+            requestLines = []
 
         if responseBody:
             responseLines = [line + '\n' for line in responseBody.split('\n')]
-            self.processRegex(toolFlag, messageInfo, responseLines)
+        else:
+            responseLines = []
+        
+        self.processRegex(toolFlag, messageInfo, headers + requestLines + responseLines)
 
     def processRegex(self, toolFlag, messageInfo, lines):
         for regex in REGEX_TABLE:
@@ -155,7 +170,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
                 if resultRegex:
                     insertMessage = True
                     if line not in lineMatched:
-                        lineMatched.append(line)                    
+                        lineMatched.append(line[:300])                    
                     for result in resultRegex:
                         if result not in valueMatched:
                             valueMatched.append(result)        
@@ -341,7 +356,7 @@ class RegexerGUI(JFrame):
                 self._extender._jTextAreaLineMatched.setText("None")
                 self._extender._jTextAreaValueMatched.setText("None")
                 self.jTableEntry.getModel().fireTableDataChanged()
-                
+
                 JOptionPane.showMessageDialog(None, "Entries and results successfully cleared!")
                 
 
@@ -617,7 +632,10 @@ class EntryTable(JTable):
         self.getTableHeader().setReorderingAllowed(False)
 
     def changeSelection(self, row, col, toggle, extend):
-        logEntry = self._extender._log.get(row)
+        print(row)
+        index = self.getValueAt(row, 0)
+        print(index)
+        logEntry = self._extender._log.get(index)
         self._extender._requestViewer.setMessage(logEntry._requestResponse.getRequest(), True)
         self._extender._responseViewer.setMessage(logEntry._requestResponse.getResponse(), True)
         self._extender._jTextAreaLineMatched.setText("\n".join(str(line).encode("utf-8").strip() for line in logEntry._lineMatched))
