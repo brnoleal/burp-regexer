@@ -25,6 +25,7 @@ from javax.swing import JTable
 from javax.swing import JTabbedPane
 from javax.swing import JTextArea
 from javax.swing import JTextField
+from javax.swing import ListSelectionModel
 from javax.swing.table import DefaultTableModel
 from javax.swing.table import AbstractTableModel
 
@@ -246,8 +247,7 @@ class RegexerGUI(JFrame):
         self.jButtonAdd = JButton("Add", actionPerformed=self.handleJButtonAdd)
         self.jButtonRemove = JButton("Remove", actionPerformed=self.handleJButtonRemove)
         self.jButtonEdit = JButton("Edit", actionPerformed=self.handleJButtonEdit)
-        self.jButtonCopy = JButton("Copy")
-        self.jButtonClear = JButton("Clear")
+        self.jButtonClear = JButton("Clear", actionPerformed=self.handleJButtonClear)
 
         self.jTableEntry = EntryTable(self._extender)
         self.jScrollPaneTableEntry.setViewportView(self.jTableEntry)
@@ -289,11 +289,10 @@ class RegexerGUI(JFrame):
             .addGroup(layout.createSequentialGroup()
                 .addGap(6, 6, 6)
                 .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING, False)
-                    .addComponent(self.jButtonCopy, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(self.jButtonClear, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(self.jButtonEdit, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(self.jButtonAdd, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(self.jButtonRemove, GroupLayout.DEFAULT_SIZE, 86, Short.MAX_VALUE)
-                    .addComponent(self.jButtonClear, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addComponent(self.jButtonRemove, GroupLayout.DEFAULT_SIZE, 86, Short.MAX_VALUE))
                 .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(self.jSplitPane1))
         );
@@ -306,9 +305,8 @@ class RegexerGUI(JFrame):
                 .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(self.jButtonRemove, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
                 .addGap(56, 56, 56)
-                .addComponent(self.jButtonCopy, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(self.jButtonClear, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
                 .addContainerGap(GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
             .addComponent(self.jSplitPane1, GroupLayout.DEFAULT_SIZE, 603, Short.MAX_VALUE)
         );            
@@ -324,9 +322,28 @@ class RegexerGUI(JFrame):
         regexerGUIEdit.show()
 
     def handleJButtonRemove(self, event):
-        if(self.jTableRegex.getSelectedRow() != -1):
-            self.jTableRegex.removeRow(self.jTableRegex.getSelectedRow())
+        index = self.jTableRegex.getSelectedRow() 
+        if(index != -1):
+            self.jTableRegex.removeRow(index)
             JOptionPane.showMessageDialog(None, "Selected row successfully deleted!")
+
+    def handleJButtonClear(self, event):
+        index = self.jTableRegex.getSelectedRow() 
+        if(index != -1):
+            key = self.jTableRegex.getValueAt(index, 1)
+            if 'logEntry' in REGEX_DICT[key]:
+                REGEX_DICT[key]['logEntry'] = ArrayList()
+                REGEX_DICT[key]['valueMatched'] = []
+
+                self._extender._log = ArrayList()
+                self._extender._requestViewer.setMessage("None", True)
+                self._extender._responseViewer.setMessage("None", True)
+                self._extender._jTextAreaLineMatched.setText("None")
+                self._extender._jTextAreaValueMatched.setText("None")
+                self.jTableEntry.getModel().fireTableDataChanged()
+                
+                JOptionPane.showMessageDialog(None, "Entries and results successfully cleared!")
+                
 
 
 class JTabbedPane2ChangeListener(ChangeListener):
@@ -355,13 +372,15 @@ class JTabbedPane2ChangeListener(ChangeListener):
                 key = self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 1)
                 regex = self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 2)            
                 length = len(REGEX_DICT[key]['valueMatched'])
+                uniq = len(list(set(REGEX_DICT[key]['valueMatched'])))
                 details = '''
-                    {} results found for this regex.\n
-                    \nRule name: 
-                    {}
-                    \nRegex: 
-                    {}
-                    '''.format(length, key, regex)
+                {} results found for this regex.\n
+                {} uniq results show in 'All Results' tab.\n
+                \nRule name: 
+                {}
+                \nRegex: 
+                {}
+                '''.format(length, uniq, key, regex)
                 self._extender._jTextAreaDetails.setText(details)
             except:
                 self._extender._jTextAreaDetails.setText("Select one rule from regex table to show it's results.")
@@ -484,7 +503,8 @@ class RegexTable(JTable):
         self.setModel(model)
         self.setAutoCreateRowSorter(True)
         self.getTableHeader().setReorderingAllowed(False)
-        self.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+        self.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS)
+        self.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
         self.addMouseListener(RegexTableMouseListener(self._extender, self._jTableEntry))
 
     def addRow(self, data):
@@ -593,6 +613,7 @@ class EntryTable(JTable):
         self._extender = extender
         self.setModel(extender)
         self.setAutoCreateRowSorter(True)
+        self.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         self.getTableHeader().setReorderingAllowed(False)
 
     def changeSelection(self, row, col, toggle, extend):
