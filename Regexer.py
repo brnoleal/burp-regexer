@@ -77,13 +77,14 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self._requestViewer = self._callbacks.createMessageEditor(self, False)
         self._responseViewer = self._callbacks.createMessageEditor(self, False)        
 
-        self.regexTableData = []
         self.regexTableColumns = ["#", "Rule Name", "Regex", "Description"]
-        for key,value in REGEX_DICT.items():
-            tmp = [v for v in value.values()]
-            tmp.insert(0, key)
-            tmp.insert(0, len(self.regexTableData))
-            self.regexTableData.append(tmp)
+        self.regexTableData = []
+        for key in REGEX_DICT.keys():
+            self.regexTableData.append([
+                len(self.regexTableData),
+                key,
+                REGEX_DICT[key]['regex'],
+                REGEX_DICT[key]['description']])
 
         self._jTableEntry = EntryTable(self)
         self._jTableRegex = RegexTable(self, self._jTableEntry)        
@@ -250,18 +251,12 @@ class Regexer(JFrame):
         self.jPanelRequest = JPanel()
         self.jPanelResponse = JPanel()
 
-
         self.jButtonAdd = JButton("Add", actionPerformed=self.handleJButtonAdd)
         self.jButtonRemove = JButton("Remove", actionPerformed=self.handleJButtonRemove)
         self.jButtonEdit = JButton("Edit", actionPerformed=self.handleJButtonEdit)
         self.jButtonClear = JButton("Clear", actionPerformed=self.handleJButtonClear)
         self.jButtonUpdate = JButton("Update", actionPerformed=self.handleJButtonUpdate)
 
-        # self.jTableEntry = EntryTable(self._extender)
-        # self.jScrollPaneTableEntry.setViewportView(self.jTableEntry)
-
-        # self.jTableRegex = RegexTable(self._extender, self.jTableEntry)
-        # self.jScrollPaneTableRegex.setViewportView(self.jTableRegex)
         self.jScrollPaneTableEntry.setViewportView(self.jTableEntry)
         self.jScrollPaneTableRegex.setViewportView(self.jTableRegex)
 
