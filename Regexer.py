@@ -50,11 +50,9 @@ REGEX_DICT = {
     },
     "Google API Key": {
         "regex": "AIza[0-9A-Za-z-_]{35}",
-        "descrition": "Get Google API Key."
+        "description": "Get Google API Key."
     },
 }
-
-REGEX_TABLE = []
 
 
 class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController, AbstractTableModel):
@@ -75,20 +73,20 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self._jTextAreaAllResults.setEditable(False)
         self._jTextAreaDetails = JTextArea()
         self._jTextAreaDetails.setEditable(False)
-        
+
         self._requestViewer = self._callbacks.createMessageEditor(self, False)
         self._responseViewer = self._callbacks.createMessageEditor(self, False)        
 
         self.regexTableData = []
-        self.regexTableColumns = ["#", "Rule Name", "Regex"]
+        self.regexTableColumns = ["#", "Rule Name", "Regex", "Description"]
         for key,value in REGEX_DICT.items():
             tmp = [v for v in value.values()]
             tmp.insert(0, key)
             tmp.insert(0, len(self.regexTableData))
             self.regexTableData.append(tmp)
-        
-        global REGEX_TABLE
-        REGEX_TABLE = self.regexTableData
+
+        self._jTableEntry = EntryTable(self)
+        self._jTableRegex = RegexTable(self, self._jTableEntry)        
 
         print("Processing proxy history, please wait...")
         self.processProxyHistory()
@@ -128,32 +126,23 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         requestInfo = self._helpers.analyzeRequest(messageInfo.getRequest())
         requestHeader = requestInfo.getHeaders()
         requestBody = messageInfo.getRequest()[(requestInfo.getBodyOffset()):].tostring()
-
         responseInfo = self._helpers.analyzeResponse(messageInfo.getResponse())
         responseHeader = responseInfo.getHeaders()
         responseBody = messageInfo.getResponse()[(responseInfo.getBodyOffset()):].tostring()
-
+        headers = requestLines = responseLines = []
         if requestHeader or responseHeader:
             headers = requestHeader + responseHeader
-        else:
-            headers = []
-
         if requestBody:
             requestLines = [line + '\n' for line in requestBody.split('\n')]
-        else:
-            requestLines = []
-
         if responseBody:
             responseLines = [line + '\n' for line in responseBody.split('\n')]
-        else:
-            responseLines = []
-        
         self.processRegex(toolFlag, messageInfo, headers + requestLines + responseLines)
 
     def processRegex(self, toolFlag, messageInfo, lines):
-        for regex in REGEX_TABLE:
-            key = regex[1]
-            regexPattern = regex[2]
+        regexTableData = self._jTableRegex.getModel().getDataVector()
+        for regex in regexTableData:
+            key = regex.get(1)
+            regexPattern = regex.get(2)
             insertMessage = False
 
             if 'valueMatched' not in REGEX_DICT[key]:
@@ -244,6 +233,8 @@ class Regexer(JFrame):
 
     def __init__(self, extender):
         self._extender = extender
+        self.jTableEntry = self._extender._jTableEntry
+        self.jTableRegex = self._extender._jTableRegex
 
         self.jPanelMain = JPanel()
         self.jSplitPane1 = JSplitPane()
@@ -259,19 +250,22 @@ class Regexer(JFrame):
         self.jPanelRequest = JPanel()
         self.jPanelResponse = JPanel()
 
+
         self.jButtonAdd = JButton("Add", actionPerformed=self.handleJButtonAdd)
         self.jButtonRemove = JButton("Remove", actionPerformed=self.handleJButtonRemove)
         self.jButtonEdit = JButton("Edit", actionPerformed=self.handleJButtonEdit)
         self.jButtonClear = JButton("Clear", actionPerformed=self.handleJButtonClear)
+        self.jButtonUpdate = JButton("Update", actionPerformed=self.handleJButtonUpdate)
 
-        self.jTableEntry = EntryTable(self._extender)
+        # self.jTableEntry = EntryTable(self._extender)
+        # self.jScrollPaneTableEntry.setViewportView(self.jTableEntry)
+
+        # self.jTableRegex = RegexTable(self._extender, self.jTableEntry)
+        # self.jScrollPaneTableRegex.setViewportView(self.jTableRegex)
         self.jScrollPaneTableEntry.setViewportView(self.jTableEntry)
-
-        self.jTableRegex = RegexTable(self._extender, self.jTableEntry)
         self.jScrollPaneTableRegex.setViewportView(self.jTableRegex)
 
         self.jTabbedPane.addTab("Request", self._extender._requestViewer.getComponent())
-
         self.jTabbedPane.addTab("Response", self._extender._responseViewer.getComponent())
 
         self.jScrollPaneLineMatched.setViewportView(self._extender._jTextAreaLineMatched)
@@ -304,27 +298,29 @@ class Regexer(JFrame):
             .addGroup(layout.createSequentialGroup()
                 .addGap(6, 6, 6)
                 .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING, False)
+                    .addComponent(self.jButtonUpdate, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(self.jButtonClear, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(self.jButtonEdit, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(self.jButtonAdd, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(self.jButtonRemove, GroupLayout.DEFAULT_SIZE, 86, Short.MAX_VALUE))
                 .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(self.jSplitPane1))
-        );
+        )
         layout.setVerticalGroup(
             layout.createParallelGroup(GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addComponent(self.jButtonAdd, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
                 .addGap(4, 4, 4)
                 .addComponent(self.jButtonEdit, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                .addGap(4, 4, 4)
                 .addComponent(self.jButtonRemove, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
                 .addGap(56, 56, 56)
                 .addComponent(self.jButtonClear, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                .addGap(4, 4, 4)
+                .addComponent(self.jButtonUpdate, GroupLayout.PREFERRED_SIZE, 28, GroupLayout.PREFERRED_SIZE)
                 .addContainerGap(GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
             .addComponent(self.jSplitPane1, GroupLayout.DEFAULT_SIZE, 603, Short.MAX_VALUE)
-        );            
+        )          
 
     def handleJButtonAdd(self, event):
         regexerEdit = RegexerEdit(self.jTableRegex, event)
@@ -349,15 +345,18 @@ class Regexer(JFrame):
             if 'logEntry' in REGEX_DICT[key]:
                 REGEX_DICT[key]['logEntry'] = ArrayList()
                 REGEX_DICT[key]['valueMatched'] = []
-
                 self._extender._log = ArrayList()
                 self._extender._requestViewer.setMessage("None", True)
                 self._extender._responseViewer.setMessage("None", True)
                 self._extender._jTextAreaLineMatched.setText("None")
                 self._extender._jTextAreaValueMatched.setText("None")
                 self.jTableEntry.getModel().fireTableDataChanged()
-
                 JOptionPane.showMessageDialog(None, "Entries and results successfully cleared!")
+
+    def handleJButtonUpdate(self, event):
+        index = self.jTableRegex.getSelectedRow() 
+        if(index != -1):
+            key = self.jTableRegex.getValueAt(index, 1)
 
 
 class JTabbedPane2ChangeListener(ChangeListener):
@@ -477,7 +476,6 @@ class RegexerEdit(JFrame):
         )
 
     def addEditRegex(self, event):
-        global REGEX_TABLE
         key =  self.jTextFieldkey.getText()
         regex = self.jTextFieldRegex.getText()
         if key == "" or regex == "":
@@ -489,14 +487,12 @@ class RegexerEdit(JFrame):
                 except:
                     lastIndex = 0
                 self.jTableRegex.addRow([lastIndex + 1, key, regex])            
-                REGEX_TABLE = self.jTableRegex.getModel().getDataVector()
                 self.updateRegexDict(key, regex)
                 self.dispose()
             elif self._event.source.text == "Edit":
                 index = self.jTableRegex.getSelectedRow()
                 self.jTableRegex.setValueAt(key, index, 1)
                 self.jTableRegex.setValueAt(regex, index, 2)
-                REGEX_TABLE = self.jTableRegex.getModel().getDataVector()
                 self.updateRegexDict(key, regex)
                 self.dispose()
 
@@ -540,11 +536,11 @@ class RegexTableModel(DefaultTableModel):
         DefaultTableModel.__init__(self, data, columns)
 
     def isCellEditable(self, row, column):
-        canEdit = [False, False, False]
+        canEdit = [False, False, False, False]
         return canEdit[column]
 
     def getColumnClass(self, column):
-        columnClasses = [Integer, String, String]
+        columnClasses = [Integer, String, String, String]
         return columnClasses[column]
 
 
@@ -653,14 +649,6 @@ class LogEntry:
         self._method = method
         self._lineMatched = lineMatched
         self._valueMatched = valueMatched
-
-
-class RegexEntry:
-    def __init__(self, index, key, regex, logEntry):
-        self._index = index
-        self._key = key
-        self._regex = regex
-        self._logEntry = logEntry
 
 
 # support for burp-exceptions
