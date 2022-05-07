@@ -46,11 +46,11 @@ except ImportError:
 REGEX_DICT = {
     "URI Schemes": {
         "regex": "[a-zA-Z0-9-]*://[a-zA-Z0-9?=&\[\]:%_./-]+",
-        "detail": "Extract all URI schemes.",
+        "description": "Extract all URI schemes.",
     },
     "Google API Key": {
         "regex": "AIza[0-9A-Za-z-_]{35}",
-        "detail": "Get Google API Key."
+        "descrition": "Get Google API Key."
     },
 }
 
@@ -89,14 +89,14 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         
         global REGEX_TABLE
         REGEX_TABLE = self.regexTableData
-    
-        self._callbacks.setExtensionName("Regexer")
-        self._callbacks.addSuiteTab(self)
-        self._callbacks.registerHttpListener(self)
 
         print("Processing proxy history, please wait...")
         self.processProxyHistory()
         print("Done!")
+
+        self._callbacks.setExtensionName("Regexer")
+        self._callbacks.addSuiteTab(self)
+        self._callbacks.registerHttpListener(self)        
         
         return
 
@@ -104,8 +104,8 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         return "Regexer"
 
     def getUiComponent(self):
-        regexerGui = RegexerGUI(self)
-        return regexerGui.jPanelMain
+        regexer = Regexer(self)
+        return regexer.jPanelMain
 
     def processHttpMessage(self, toolFlag, messageIsRequest, messageInfo):
         if messageIsRequest:
@@ -240,7 +240,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         return self._currentlyDisplayedItem.getResponse()
 
 
-class RegexerGUI(JFrame):
+class Regexer(JFrame):
 
     def __init__(self, extender):
         self._extender = extender
@@ -327,14 +327,14 @@ class RegexerGUI(JFrame):
         );            
 
     def handleJButtonAdd(self, event):
-        regexerGUIEdit = RegexerGUIEdit(self.jTableRegex, event)
-        regexerGUIEdit.pack()
-        regexerGUIEdit.show()
+        regexerEdit = RegexerEdit(self.jTableRegex, event)
+        regexerEdit.pack()
+        regexerEdit.show()
 
     def handleJButtonEdit(self, event):
-        regexerGUIEdit = RegexerGUIEdit(self.jTableRegex, event)
-        regexerGUIEdit.pack()
-        regexerGUIEdit.show()
+        regexerEdit = RegexerEdit(self.jTableRegex, event)
+        regexerEdit.pack()
+        regexerEdit.show()
 
     def handleJButtonRemove(self, event):
         index = self.jTableRegex.getSelectedRow() 
@@ -358,7 +358,6 @@ class RegexerGUI(JFrame):
                 self.jTableEntry.getModel().fireTableDataChanged()
 
                 JOptionPane.showMessageDialog(None, "Entries and results successfully cleared!")
-                
 
 
 class JTabbedPane2ChangeListener(ChangeListener):
@@ -401,7 +400,7 @@ class JTabbedPane2ChangeListener(ChangeListener):
                 self._extender._jTextAreaDetails.setText("Select one rule from regex table to show it's results.")
 
 
-class RegexerGUIEdit(JFrame):
+class RegexerEdit(JFrame):
 
     def __init__(self, jTableRegex, event):
         self.jTableRegex = jTableRegex
@@ -427,7 +426,7 @@ class RegexerGUIEdit(JFrame):
             self.jTextFieldRegex.setText(self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 2))
         
         self.jButtonOK = JButton("OK", actionPerformed=self.addEditRegex)
-        self.jButtonCancel = JButton("Cancel", actionPerformed=self.closeRegexerGUIEdit)
+        self.jButtonCancel = JButton("Cancel", actionPerformed=self.closeRegexerEdit)
 
         self.jTextFieldkey.setToolTipText("")
         self.jTextFieldkey.setBorder(BorderFactory.createLineBorder(Color.lightGray));
@@ -486,17 +485,24 @@ class RegexerGUIEdit(JFrame):
                 lastIndex = self.jTableRegex.getValueAt(self.jTableRegex.getRowCount()-1, 0)
             except:
                 lastIndex = 0
-            self.jTableRegex.addRow([lastIndex + 1, key, regex])            
-            REGEX_TABLE = self.jTableRegex.getModel().getDataVector()
-            self.updateRegexDict(key, regex)
-            self.dispose()
+
+            if key == "" or regex == "":
+                JOptionPane.showMessageDialog(None, "Rule name and regex must not be empty!")
+            else:
+                self.jTableRegex.addRow([lastIndex + 1, key, regex])            
+                REGEX_TABLE = self.jTableRegex.getModel().getDataVector()
+                self.updateRegexDict(key, regex)
+                self.dispose()
         elif self._event.source.text == "Edit":
-            rowIndex = self.jTableRegex.getSelectedRow()
-            self.jTableRegex.setValueAt(key, rowIndex, 1)
-            self.jTableRegex.setValueAt(regex, rowIndex, 2)
-            REGEX_TABLE = self.jTableRegex.getModel().getDataVector()
-            self.updateRegexDict(key, regex)
-            self.dispose()
+            if key == "" or regex == "":
+                JOptionPane.showMessageDialog(None, "Rule name and regex must not be empty!")
+            else:
+                index = self.jTableRegex.getSelectedRow()
+                self.jTableRegex.setValueAt(key, index, 1)
+                self.jTableRegex.setValueAt(regex, index, 2)
+                REGEX_TABLE = self.jTableRegex.getModel().getDataVector()
+                self.updateRegexDict(key, regex)
+                self.dispose()
 
     def updateRegexDict(self, key, regex):
         if key not in REGEX_DICT:
@@ -504,7 +510,7 @@ class RegexerGUIEdit(JFrame):
         else: 
             REGEX_DICT[key]['regex'] = regex
 
-    def closeRegexerGUIEdit(self, event):
+    def closeRegexerEdit(self, event):
         self.dispose()
 
 
@@ -632,9 +638,7 @@ class EntryTable(JTable):
         self.getTableHeader().setReorderingAllowed(False)
 
     def changeSelection(self, row, col, toggle, extend):
-        print(row)
         index = self.getValueAt(row, 0)
-        print(index)
         logEntry = self._extender._log.get(index)
         self._extender._requestViewer.setMessage(logEntry._requestResponse.getRequest(), True)
         self._extender._responseViewer.setMessage(logEntry._requestResponse.getResponse(), True)
