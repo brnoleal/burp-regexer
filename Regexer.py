@@ -480,23 +480,19 @@ class RegexerEdit(JFrame):
         global REGEX_TABLE
         key =  self.jTextFieldkey.getText()
         regex = self.jTextFieldRegex.getText()
-        if self._event.source.text == "Add":
-            try:
-                lastIndex = self.jTableRegex.getValueAt(self.jTableRegex.getRowCount()-1, 0)
-            except:
-                lastIndex = 0
-
-            if key == "" or regex == "":
-                JOptionPane.showMessageDialog(None, "Rule name and regex must not be empty!")
-            else:
+        if key == "" or regex == "":
+            JOptionPane.showMessageDialog(None, "Rule name and regex must not be empty!")
+        else:
+            if self._event.source.text == "Add":
+                try:
+                    lastIndex = self.jTableRegex.getValueAt(self.jTableRegex.getRowCount()-1, 0)
+                except:
+                    lastIndex = 0
                 self.jTableRegex.addRow([lastIndex + 1, key, regex])            
                 REGEX_TABLE = self.jTableRegex.getModel().getDataVector()
                 self.updateRegexDict(key, regex)
                 self.dispose()
-        elif self._event.source.text == "Edit":
-            if key == "" or regex == "":
-                JOptionPane.showMessageDialog(None, "Rule name and regex must not be empty!")
-            else:
+            elif self._event.source.text == "Edit":
                 index = self.jTableRegex.getSelectedRow()
                 self.jTableRegex.setValueAt(key, index, 1)
                 self.jTableRegex.setValueAt(regex, index, 2)
