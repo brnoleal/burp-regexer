@@ -29,7 +29,8 @@ from javax.swing import ListSelectionModel
 from javax.swing.table import DefaultTableModel
 from javax.swing.table import AbstractTableModel
 
-from java.util import ArrayList;
+from java.util import Arrays
+from java.util import ArrayList
 from java.awt import Color
 from java.awt.event import MouseListener
 from javax.swing.event import ChangeListener
@@ -106,14 +107,14 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self.processMessage(toolFlag, self._callbacks.saveBuffersToTempFiles(messageInfo))
         self._lock.release()   
 
-    def processProxyHistory(self):
+    def processProxyHistory(self, regexUpdate=None):
         proxyHistory = self._callbacks.getProxyHistory()
         for messageInfo in proxyHistory:
             self._lock.acquire()
-            self.processMessage(4, self._callbacks.saveBuffersToTempFiles(messageInfo))
+            self.processMessage(4, self._callbacks.saveBuffersToTempFiles(messageInfo), regexUpdate)
             self._lock.release()   
 
-    def processMessage(self, toolFlag, messageInfo):
+    def processMessage(self, toolFlag, messageInfo, regexUpdate=None):
         if not messageInfo.getResponse():
             return 
 
@@ -130,10 +131,15 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
             requestLines = [line + '\n' for line in requestBody.split('\n')]
         if responseBody:
             responseLines = [line + '\n' for line in responseBody.split('\n')]
-        self.processRegex(toolFlag, messageInfo, headers + requestLines + responseLines)
+        self.processRegex(toolFlag, messageInfo, headers + requestLines + responseLines, regexUpdate)
 
-    def processRegex(self, toolFlag, messageInfo, lines):
-        regexTableData = self._jTableRegex.getModel().getDataVector()
+    def processRegex(self, toolFlag, messageInfo, lines, regexUpdate=None):
+        if regexUpdate is None: 
+            regexTableData = self._jTableRegex.getModel().getDataVector()
+        else:
+            regexTableData = ArrayList()
+            regexTableData.add(Arrays.asList(-1, regexUpdate['key'], regexUpdate['regex']))
+
         for regex in regexTableData:
             key = regex.get(1)
             regexPattern = regex.get(2)
@@ -345,6 +351,27 @@ class Regexer(JFrame):
         index = self.jTableRegex.getSelectedRow() 
         if(index != -1):
             key = self.jTableRegex.getValueAt(index, 1)
+            regex = self.jTableRegex.getValueAt(index, 2)
+            if 'logEntry' in REGEX_DICT[key]:
+                REGEX_DICT[key]['logEntry'] = ArrayList()
+                REGEX_DICT[key]['valueMatched'] = []  
+            self._extender.processProxyHistory({"key":key, "regex":regex})
+            self._extender._log = REGEX_DICT[key]['logEntry']
+            self.jTableEntry.getModel().fireTableDataChanged()
+
+            try:
+                logEntry = self._extender._log.get(0)
+                self._extender._requestViewer.setMessage(logEntry._requestResponse.getRequest(), True)
+                self._extender._responseViewer.setMessage(logEntry._requestResponse.getResponse(), True)
+                self._extender._jTextAreaLineMatched.setText("\n".join(str(line).encode("utf-8").strip() for line in logEntry._lineMatched))
+                self._extender._jTextAreaValueMatched.setText("\n".join(str(value).encode("utf-8").strip() for value in logEntry._valueMatched))
+                self._extender._currentlyDisplayedItem = logEntry._requestResponse       
+            except:
+                self._extender._requestViewer.setMessage("None", True)
+                self._extender._responseViewer.setMessage("None", True)
+                self._extender._jTextAreaLineMatched.setText("None")
+                self._extender._jTextAreaValueMatched.setText("None")   
+                         
 
 
 class JTabbedPane2ChangeListener(ChangeListener):
