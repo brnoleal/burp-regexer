@@ -35,8 +35,10 @@ from java.awt import Color
 from java.awt.event import MouseListener
 from javax.swing.event import ChangeListener
 
-import sys
 import re
+import os
+import json
+import platform
 from threading import Lock
 try:
     from exceptions_fix import FixBurpExceptions
@@ -53,12 +55,15 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self._helpers = callbacks.getHelpers()
         self._log = ArrayList()
         self._lock = Lock()
+        self._filePath = "" 
 
         self._requestViewer = self._callbacks.createMessageEditor(self, False)
-        self._responseViewer = self._callbacks.createMessageEditor(self, False)        
+        self._responseViewer = self._callbacks.createMessageEditor(self, False)               
 
         self.regexTableColumns = ["#", "Rule Name", "Regex", "Description"]
         self.regexTableData = []
+        REGEX_DICT = self.loadSaveLocalFile()
+        print(REGEX_DICT)
         for key in REGEX_DICT.keys():
             self.regexTableData.append([
                 len(self.regexTableData),
@@ -145,6 +150,8 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
             regexPattern = regex.get(2)
             insertMessage = False
 
+            if key not in REGEX_DICT:
+                REGEX_DICT[key] = {}
             if 'valueMatched' not in REGEX_DICT[key]:
                 REGEX_DICT[key]['valueMatched'] = []
             if 'lineMatched' not in REGEX_DICT[key]:
@@ -182,6 +189,31 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
 
             REGEX_DICT[key]['valueMatched'] += valueMatched
             REGEX_DICT[key]['lineMatched'] += lineMatched
+
+    def loadSaveLocalFile(self):
+        system = platform.system()
+        if system == "Java":
+            system = platform.java_ver()[3][0]
+        if system == "Linux":
+            self._filePath = "/tmp/regexer-rules.json" 
+        elif system == "Windows:":
+            self._filePath = "C:\WINDOWS\Temp\regexer-rules.json"
+            
+        if (os.path.exists(self._filePath)):
+            print("Loading regex from {}...".format(self._filePath))
+            try:
+                with open(self._filePath, "r") as file:
+                    REGEX_DICT = json.load(file)
+            except Exception as e:
+                print("Something wrong while trying to load or parse file. Error: {}".format(e))
+        else:
+            print("Saving regex rules locally at {}...".format(self._filePath))
+            try:
+                with open(self._filePath, "w") as file:
+                    json.dump(REGEX_DICT, file)
+            except Exception as e:
+                print("Something wrong while trying to save file. Error: {}".format(e))  
+        return REGEX_DICT         
 
     def getRowCount(self):
         try:
@@ -317,12 +349,12 @@ class Regexer(JFrame):
         )          
 
     def handleJButtonAdd(self, event):
-        regexerEdit = RegexerEdit(self.jTableRegex, event)
+        regexerEdit = RegexerEdit(self._extender, self.jTableRegex, event)
         regexerEdit.pack()
         regexerEdit.show()
 
     def handleJButtonEdit(self, event):
-        regexerEdit = RegexerEdit(self.jTableRegex, event)
+        regexerEdit = RegexerEdit(self._extender, self.jTableRegex, event)
         regexerEdit.pack()
         regexerEdit.show()
 
@@ -373,7 +405,6 @@ class Regexer(JFrame):
                 self._extender._jTextAreaValueMatched.setText("None")   
                          
 
-
 class JTabbedPane2ChangeListener(ChangeListener):
     def __init__(self, extender, jTableRegex):
         self._extender = extender
@@ -416,9 +447,10 @@ class JTabbedPane2ChangeListener(ChangeListener):
 
 class RegexerEdit(JFrame):
 
-    def __init__(self, jTableRegex, event):
-        self.jTableRegex = jTableRegex
+    def __init__(self, extender, jTableRegex, event):
+        self._extender = extender
         self._event = event
+        self.jTableRegex = jTableRegex
         
         self.jLabel1 = JLabel()
         self.jLabel1.setText("Specify the details of the regex rule.")
@@ -510,6 +542,17 @@ class RegexerEdit(JFrame):
                 self.jTableRegex.setValueAt(regex, index, 2)
                 self.updateRegexDict(key, regex)
                 self.dispose()
+            
+            try:
+                regexTableData = self.jTableRegex.getModel().getDataVector()
+                regexDict = {}
+                for regex in regexTableData:
+                    regexDict[regex[1]] = {"regex":regex[2], "description":regex[3]}
+                with open(self._extender._filePath, "w") as file:
+                    json.dump(regexDict, file)
+            except Exception as e:
+                print("Something wrong while trying to save file. Error: {}".format(e))   
+
 
     def updateRegexDict(self, key, regex):
         if key not in REGEX_DICT:
