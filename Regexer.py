@@ -63,7 +63,6 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self.regexTableColumns = ["#", "Rule Name", "Regex", "Description"]
         self.regexTableData = []
         REGEX_DICT = self.loadSaveLocalFile()
-        print(REGEX_DICT)
         for key in REGEX_DICT.keys():
             self.regexTableData.append([
                 len(self.regexTableData),
@@ -363,6 +362,15 @@ class Regexer(JFrame):
         if(index != -1):
             self.jTableRegex.removeRow(index)
             JOptionPane.showMessageDialog(None, "Selected row successfully deleted!")
+            try:
+                regexTableData = self.jTableRegex.getModel().getDataVector()
+                regexDict = {}
+                for regex in regexTableData:
+                    regexDict[regex[1]] = {"regex":regex[2], "description":regex[3]}
+                with open(self._extender._filePath, "w") as file:
+                    json.dump(regexDict, file)
+            except Exception as e:
+                print("Something wrong while trying to update file. Error: {}".format(e))              
 
     def handleJButtonClear(self, event):
         index = self.jTableRegex.getSelectedRow() 
@@ -551,7 +559,7 @@ class RegexerEdit(JFrame):
                 with open(self._extender._filePath, "w") as file:
                     json.dump(regexDict, file)
             except Exception as e:
-                print("Something wrong while trying to save file. Error: {}".format(e))   
+                print("Something wrong while trying to update file. Error: {}".format(e))   
 
 
     def updateRegexDict(self, key, regex):
