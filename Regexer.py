@@ -201,7 +201,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         elif system == "Windows":
             self._filePath = "C:\\WINDOWS\\Temp\\regexer-rules.json"
             
-        if (os.path.exists(self._filePath)):
+        if (os.path.isfile(self._filePath)):
             print("Loading regex from {}...".format(self._filePath))
             try:
                 with open(self._filePath, "r") as file:
