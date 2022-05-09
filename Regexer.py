@@ -37,6 +37,7 @@ from javax.swing.event import ChangeListener
 
 import re
 import os
+import sys
 import json
 import platform
 from threading import Lock
@@ -56,13 +57,14 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self._log = ArrayList()
         self._lock = Lock()
         self._filePath = "" 
+        sys.stdout = callbacks.getStdout()
 
         self._requestViewer = self._callbacks.createMessageEditor(self, False)
         self._responseViewer = self._callbacks.createMessageEditor(self, False)               
 
         self.regexTableColumns = ["#", "Rule Name", "Regex", "Description"]
         self.regexTableData = []
-        REGEX_DICT = self.loadSaveLocalFile()
+        self.loadSaveLocalFile()
         for key in REGEX_DICT.keys():
             self.regexTableData.append([
                 len(self.regexTableData),
@@ -190,13 +192,14 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
             REGEX_DICT[key]['lineMatched'] += lineMatched
 
     def loadSaveLocalFile(self):
+        global REGEX_DICT
         system = platform.system()
         if system == "Java":
-            system = platform.java_ver()[3][0]
-        if system == "Linux":
+            system = platform.java_ver()[3][0].split(" ")[0]
+        if system == "Linux" or system == "Darwin":
             self._filePath = "/tmp/regexer-rules.json" 
-        elif system == "Windows:":
-            self._filePath = "C:\WINDOWS\Temp\regexer-rules.json"
+        elif system == "Windows":
+            self._filePath = "C:\\WINDOWS\\Temp\\regexer-rules.json"
             
         if (os.path.exists(self._filePath)):
             print("Loading regex from {}...".format(self._filePath))
@@ -212,7 +215,6 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
                     json.dump(REGEX_DICT, file)
             except Exception as e:
                 print("Something wrong while trying to save file. Error: {}".format(e))  
-        return REGEX_DICT         
 
     def getRowCount(self):
         try:
@@ -468,9 +470,13 @@ class RegexerEdit(JFrame):
         
         self.jLabel3 = JLabel()
         self.jLabel3.setText("Regex:")
+        
+        self.jLabel4 = JLabel()
+        self.jLabel4.setText("Description:")
 
         self.jTextFieldkey = JTextField()
         self.jTextFieldRegex = JTextField()
+        self.jTextFieldDescription = JTextField()
 
         if event.source.text == "Add":
             self.setTitle("Add Regex Rule")
@@ -479,13 +485,8 @@ class RegexerEdit(JFrame):
             self.jTextFieldkey.setText(self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 1))
             self.jTextFieldRegex.setText(self.jTableRegex.getValueAt(self.jTableRegex.getSelectedRow(), 2))
         
-        self.jButtonOK = JButton("OK", actionPerformed=self.addEditRegex)
+        self.jButtonOk = JButton("OK", actionPerformed=self.addEditRegex)
         self.jButtonCancel = JButton("Cancel", actionPerformed=self.closeRegexerEdit)
-
-        self.jTextFieldkey.setToolTipText("")
-        self.jTextFieldkey.setBorder(BorderFactory.createLineBorder(Color.lightGray));
-        self.jTextFieldRegex.setToolTipText("")
-        self.jTextFieldRegex.setBorder(BorderFactory.createLineBorder(Color.lightGray));
         
         layout = GroupLayout(self.getContentPane())
         self.getContentPane().setLayout(layout)
@@ -495,19 +496,22 @@ class RegexerEdit(JFrame):
                 .addGap(20, 20, 20)
                 .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
                     .addComponent(self.jLabel1)
-                    .addGroup(layout.createParallelGroup(GroupLayout.Alignment.TRAILING)
-                        .addGroup(layout.createSequentialGroup()
-                            .addComponent(self.jButtonOK, GroupLayout.PREFERRED_SIZE, 70, GroupLayout.PREFERRED_SIZE)
-                            .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                            .addComponent(self.jButtonCancel, GroupLayout.PREFERRED_SIZE, 70, GroupLayout.PREFERRED_SIZE))
-                        .addGroup(layout.createSequentialGroup()
-                            .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-                                .addComponent(self.jLabel2)
-                                .addComponent(self.jLabel3))
-                            .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                            .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING, False)
-                                .addComponent(self.jTextFieldkey)
-                                .addComponent(self.jTextFieldRegex, GroupLayout.DEFAULT_SIZE, 382, Short.MAX_VALUE)))))
+                    .addGroup(GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                        .addComponent(self.jButtonOk, GroupLayout.PREFERRED_SIZE, 70, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(self.jButtonCancel, GroupLayout.PREFERRED_SIZE, 70, GroupLayout.PREFERRED_SIZE))
+                    .addGroup(GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                            .addComponent(self.jLabel4)
+                            .addComponent(self.jLabel3)
+                            .addComponent(self.jLabel2))
+                        .addGap(18, 18, 18)
+                        .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(self.jTextFieldkey, GroupLayout.PREFERRED_SIZE, 382, GroupLayout.PREFERRED_SIZE)
+                                .addGap(16, 117, Short.MAX_VALUE))
+                            .addComponent(self.jTextFieldRegex)
+                            .addComponent(self.jTextFieldDescription))))
                 .addContainerGap(20, Short.MAX_VALUE))
         )
         layout.setVerticalGroup(
@@ -516,23 +520,28 @@ class RegexerEdit(JFrame):
                 .addGap(20, 20, 20)
                 .addComponent(self.jLabel1)
                 .addGap(18, 18, 18)
-                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-                    .addComponent(self.jLabel2)
-                    .addComponent(self.jTextFieldkey, GroupLayout.PREFERRED_SIZE, 24, GroupLayout.PREFERRED_SIZE))
+                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+                    .addComponent(self.jTextFieldkey, GroupLayout.PREFERRED_SIZE, 24, GroupLayout.PREFERRED_SIZE)
+                    .addComponent(self.jLabel2))
                 .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
                     .addComponent(self.jLabel3)
                     .addComponent(self.jTextFieldRegex, GroupLayout.PREFERRED_SIZE, 24, GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+                    .addComponent(self.jLabel4)
+                    .addComponent(self.jTextFieldDescription, GroupLayout.PREFERRED_SIZE, 24, GroupLayout.PREFERRED_SIZE))
                 .addGap(18, 18, 18)
                 .addGroup(layout.createParallelGroup(GroupLayout.Alignment.TRAILING)
                     .addComponent(self.jButtonCancel, GroupLayout.PREFERRED_SIZE, 27, GroupLayout.PREFERRED_SIZE)
-                    .addComponent(self.jButtonOK, GroupLayout.PREFERRED_SIZE, 27, GroupLayout.PREFERRED_SIZE))
+                    .addComponent(self.jButtonOk, GroupLayout.PREFERRED_SIZE, 27, GroupLayout.PREFERRED_SIZE))
                 .addContainerGap(GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         )
 
     def addEditRegex(self, event):
         key =  self.jTextFieldkey.getText()
         regex = self.jTextFieldRegex.getText()
+        description = self.jTextFieldDescription.getText()
         if key == "" or regex == "":
             JOptionPane.showMessageDialog(None, "Rule name and regex must not be empty!")
         else:
@@ -541,14 +550,15 @@ class RegexerEdit(JFrame):
                     lastIndex = self.jTableRegex.getValueAt(self.jTableRegex.getRowCount()-1, 0)
                 except:
                     lastIndex = 0
-                self.jTableRegex.addRow([lastIndex + 1, key, regex])            
-                self.updateRegexDict(key, regex)
+                self.jTableRegex.addRow([lastIndex + 1, key, regex, description])            
+                self.updateRegexDict(key, regex, description)
                 self.dispose()
             elif self._event.source.text == "Edit":
                 index = self.jTableRegex.getSelectedRow()
                 self.jTableRegex.setValueAt(key, index, 1)
                 self.jTableRegex.setValueAt(regex, index, 2)
-                self.updateRegexDict(key, regex)
+                self.jTableRegex.setValueAt(description, index, 3)
+                self.updateRegexDict(key, regex, description)
                 self.dispose()
             
             try:
@@ -562,11 +572,12 @@ class RegexerEdit(JFrame):
                 print("Something wrong while trying to update file. Error: {}".format(e))   
 
 
-    def updateRegexDict(self, key, regex):
+    def updateRegexDict(self, key, regex, description):
         if key not in REGEX_DICT:
             REGEX_DICT[key] = {}
         else: 
             REGEX_DICT[key]['regex'] = regex
+            REGEX_DICT[key]['description'] = description
 
     def closeRegexerEdit(self, event):
         self.dispose()
@@ -717,7 +728,6 @@ class LogEntry:
         self._valueMatched = valueMatched
 
 
-# support for burp-exceptions
 try:
     FixBurpExceptions()
 except:
