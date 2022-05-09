@@ -196,10 +196,10 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         system = platform.system()
         if system == "Java":
             system = platform.java_ver()[3][0].split(" ")[0]
-        if system == "Linux" or system == "Darwin":
-            self._filePath = "/tmp/regexer-rules.json" 
-        elif system == "Windows":
+        if "Windows" in system:
             self._filePath = "C:\\WINDOWS\\Temp\\regexer-rules.json"
+        else:
+            self._filePath = "/tmp/regexer-rules.json" 
             
         if (os.path.isfile(self._filePath)):
             print("Loading regex from {}...".format(self._filePath))
