@@ -148,7 +148,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
 
         for regex in regexTableData:
             key = regex.get(1)
-            regexPattern = regex.get(2)
+            regexPattern = re.compile(regex.get(2))
             insertMessage = False
 
             if key not in REGEX_DICT:
@@ -163,7 +163,11 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
             valueMatched = []
             lineMatched = []
             for line in lines:
-                resultRegex = re.findall("{}".format(regexPattern), line)
+                try:
+                    resultRegex = re.findall("{}".format(regexPattern), line)
+                except Exception as e:
+                    print("Exception: {} -\n{}".format(regexPattern, e))
+
                 if resultRegex:
                     insertMessage = True
                     if line not in lineMatched:
@@ -198,8 +202,10 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
             system = platform.java_ver()[3][0].split(" ")[0]
         if "Windows" in system:
             self._filePath = "C:\\WINDOWS\\Temp\\regexer-rules.json"
-        else:
+        elif "Linux" in system:
             self._filePath = "/tmp/regexer-rules.json" 
+        elif "Darwin" in system:
+            self._filePath = "~/Library/Caches/TemporaryItems/regexer-rules.json"
             
         if (os.path.isfile(self._filePath)):
             print("Loading regex from {}...".format(self._filePath))
@@ -739,12 +745,48 @@ REGEX_DICT = {
         "regex": "[a-zA-Z0-9-]*://[a-zA-Z0-9?=&\[\]:%_./-]+",
         "description": "Extract all URI schemes.",
     },
-    "Google API Key": {
-        "regex": "AIza[0-9A-Za-z-_]{35}",
-        "description": "Get Google API Key."
+    "Facebook Access Token": {
+        "regex": "EAACEdEose0cBA[0-9A-Za-z]+",
+        "description": "Visit the URL below in your web browser:\nhttps://developers.facebook.com/tools/debug/accesstoken/?access_token=ACCESS_TOKEN_HERE&version=v3.2\n"
     },
-    "Generic Keys": {
-        "regex": "(?i)((access_key|access_token|admin_pass|admin_user|algolia_admin_key|algolia_api_key|alias_pass|alicloud_access_key|amazon_secret_access_key|amazonaws|ansible_vault_password|aos_key|api_key|api_key_secret|api_key_sid|api_secret|api.googlemaps AIza|apidocs|apikey|apiSecret|app_debug|app_id|app_key|app_log_level|app_secret|appkey|appkeysecret|application_key|appsecret|appspot|auth_token|authorizationToken|authsecret|aws_access|aws_access_key_id|aws_bucket|aws_key|aws_secret|aws_secret_key|aws_token|AWSSecretKey|b2_app_key|bashrc password|bintray_apikey|bintray_gpg_password|bintray_key|bintraykey|bluemix_api_key|bluemix_pass|browserstack_access_key|bucket_password|bucketeer_aws_access_key_id|bucketeer_aws_secret_access_key|built_branch_deploy_key|bx_password|cache_driver|cache_s3_secret_key|cattle_access_key|cattle_secret_key|certificate_password|ci_deploy_password|client_secret|client_zpk_secret_key|clojars_password|cloud_api_key|cloud_watch_aws_access_key|cloudant_password|cloudflare_api_key|cloudflare_auth_key|cloudinary_api_secret|cloudinary_name|codecov_token|config|conn.login|connectionstring|consumer_key|consumer_secret|credentials|cypress_record_key|database_password|database_schema_test|datadog_api_key|datadog_app_key|db_password|db_server|db_username|dbpasswd|dbpassword|dbuser|deploy_password|digitalocean_ssh_key_body|digitalocean_ssh_key_ids|docker_hub_password|docker_key|docker_pass|docker_passwd|docker_password|dockerhub_password|dockerhubpassword|dot-files|dotfiles|droplet_travis_password|dynamoaccesskeyid|dynamosecretaccesskey|elastica_host|elastica_port|elasticsearch_password|encryption_key|encryption_password|env.heroku_api_key|env.sonatype_password|eureka.awssecretkey)[a-z0-9_ .\-,]{0,25})(=|>|:=|\|\|:|<=|=>|:).{0,5}['\"]([0-9a-zA-Z\-_=]{8,64})['\"]",
-        "description": "Search for all leaked keys/secrets using one regex."
+    "Facebook Secret Key": {
+        "regex": "(?i)(facebook|fb)(.{0,20})?(?-i)['\\\"][0-9a-f]{32}['\\\"]",
+        "description": ""
+    },
+    "Facebook Client ID": {
+        "regex": "(?i)(facebook|fb)(.{0,20})?['\\\"][0-9]{13,17}['\\\"]",
+        "description": ""
+    },
+    "Twitter Secret Key": {
+        "regex": "(?i)twitter(.{0,20})?['\\\"][0-9a-z]{35,44}['\\\"]",
+        "description": ""
+    },
+    "Twitter Client ID": {
+        "regex": "(?i)twitter(.{0,20})?['\\\"][0-9a-z]{18,25}['\\\"]",
+        "description": ""
+    },
+    "Github Personal Access Token": {
+        "regex": "ghp_[0-9a-zA-Z]{36}",
+        "description": "Use the command below to verify that the access token is valid:\n  $ curl -s -u \"user:TOKEN_HERE\" https://api.github.com/user\n  curl -s -H \"Authorization: token TOKEN_HERE\" \"https://api.github.com/users/[USERNAME]/orgs\"\n . # Check scope of your api token\n $  curl \"https://api.github.com/rate_limit\" -i -u \"user:TOKEN_HERE\" | grep \"X-OAuth-Scopes:\"\n"
+    },
+    "Github Refresh Token": {
+        "regex": "ghr_[0-9a-zA-Z]{76}",
+        "description": ""
+    },
+    "AWS Access Key": {
+        "regex": "(A3T[A-Z0-9]|AKIA|AGPA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}",
+        "description": ""
+    },
+    "AWS Secret Key": {
+        "regex": "(?i)aws(.{0,20})?(?-i)['\\\"][0-9a-zA-Z\/+]{40}['\\\"]",
+        "description": ""
+    },
+    "Google Cloud Platfor API Key": {
+        "regex": "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+        "description": ""
+    },
+    "Amazon Web Services Simple Storage (AWS S3) URL":{
+        "regex": "[https://]*s3\\.amazonaws.com[/]+.*|[a-zA-Z0-9_-]*\\.s3\\.am",
+        "description": ""
     }
 }
