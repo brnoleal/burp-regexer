@@ -148,7 +148,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
 
         for regex in regexTableData:
             key = regex.get(1)
-            regexPattern = re.compile(regex.get(2))
+            regexPattern = regex.get(2)
             insertMessage = False
 
             if key not in REGEX_DICT:
@@ -163,11 +163,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
             valueMatched = []
             lineMatched = []
             for line in lines:
-                try:
-                    resultRegex = re.findall("{}".format(regexPattern), line)
-                except Exception as e:
-                    print("Exception: {} -\n{}".format(regexPattern, e))
-
+                resultRegex = re.findall("{}".format(regexPattern), line)
                 if resultRegex:
                     insertMessage = True
                     if line not in lineMatched:
@@ -743,50 +739,42 @@ except:
 REGEX_DICT = {
     "URI Schemes": {
         "regex": "[a-zA-Z0-9-]*://[a-zA-Z0-9?=&\[\]:%_./-]+",
-        "description": "Extract all URI schemes.",
+        "description": "",
     },
-    "Facebook Access Token": {
-        "regex": "EAACEdEose0cBA[0-9A-Za-z]+",
-        "description": "Visit the URL below in your web browser:\nhttps://developers.facebook.com/tools/debug/accesstoken/?access_token=ACCESS_TOKEN_HERE&version=v3.2\n"
-    },
-    "Facebook Secret Key": {
-        "regex": "(?i)(facebook|fb)(.{0,20})?(?-i)['\\\"][0-9a-f]{32}['\\\"]",
-        "description": ""
-    },
-    "Facebook Client ID": {
-        "regex": "(?i)(facebook|fb)(.{0,20})?['\\\"][0-9]{13,17}['\\\"]",
-        "description": ""
-    },
-    "Twitter Secret Key": {
-        "regex": "(?i)twitter(.{0,20})?['\\\"][0-9a-z]{35,44}['\\\"]",
-        "description": ""
-    },
-    "Twitter Client ID": {
-        "regex": "(?i)twitter(.{0,20})?['\\\"][0-9a-z]{18,25}['\\\"]",
-        "description": ""
-    },
-    "Github Personal Access Token": {
-        "regex": "ghp_[0-9a-zA-Z]{36}",
-        "description": "Use the command below to verify that the access token is valid:\n  $ curl -s -u \"user:TOKEN_HERE\" https://api.github.com/user\n  curl -s -H \"Authorization: token TOKEN_HERE\" \"https://api.github.com/users/[USERNAME]/orgs\"\n . # Check scope of your api token\n $  curl \"https://api.github.com/rate_limit\" -i -u \"user:TOKEN_HERE\" | grep \"X-OAuth-Scopes:\"\n"
-    },
-    "Github Refresh Token": {
-        "regex": "ghr_[0-9a-zA-Z]{76}",
+    "AWS S3 URL":{
+        "regex": "https?://[a-zA-Z0-9-.]*s3.amazonaws.com[a-zA-Z0-9?=&\[\]:%_./-]*",
         "description": ""
     },
     "AWS Access Key": {
-        "regex": "(A3T[A-Z0-9]|AKIA|AGPA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}",
+        "regex": "AKIA[0-9A-Z]{16}",
         "description": ""
     },
-    "AWS Secret Key": {
-        "regex": "(?i)aws(.{0,20})?(?-i)['\\\"][0-9a-zA-Z\/+]{40}['\\\"]",
+    "Google API": {
+        "regex": "AIza[0-9A-Za-z-_]{35}",
         "description": ""
     },
-    "Google Cloud Platfor API Key": {
-        "regex": "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+    "RSA Key": {
+        "regex": "-----BEGIN RSA PRIVATE KEY-----|-----END RSA PRIVATE KEY-----",
         "description": ""
     },
-    "Amazon Web Services Simple Storage (AWS S3) URL":{
-        "regex": "[https://]*s3\\.amazonaws.com[/]+.*|[a-zA-Z0-9_-]*\\.s3\\.am",
+    "Private Key": {
+        "regex": "Private Key: -----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----",
+        "description": ""
+    },
+    "Email Adressess": {
+        "regex": "([a-zA-Z0-9_.+-]+@[a-zA-Z0-9]+[a-zA-Z0-9-]*\.[a-zA-Z0-9-.]*[a-zA-Z0-9]{2,})",
+        "description": ""
+    },
+    "Internal IP Adressess": {
+        "regex": "(((172|10)\.\d{1,3}\.\d{1,3}\.\d{1,3})|(192\.168\.\d{1,3}\.\d{1,3})|(10\.\d{1,3}\.\d{1,3}\.\d{1,3})|([fF][eE][89aAbBcCdDeEfF]::))",
+        "description": ""
+    },
+    "MD4/MD5": {
+        "regex": "([a-f0-9]{32})",
+        "description": ""
+    },
+    "HTML Comments": {
+        "regex": "(\<![\s]*--[\-!@#$%^&*:;.,\"'(){}\w\s\/\\[\]]*--[\s]*\>)",
         "description": ""
     }
 }
