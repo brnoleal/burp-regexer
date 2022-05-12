@@ -24,6 +24,6 @@ https://github.com/sdushantha/dora/blob/main/dora/db/data.json
 
 ## TODO
 
-- [] Include Enable/Disable option for rules;
-- [] Include option to process only items that match targets in Scope;
-- [] Fix where to store regex locally in MacOs.
+- [ ] Include Enable/Disable option for rules;
+- [ ] Include option to process only items that match targets in Scope;
+- [ ] Fix where to store regex locally in MacOs.
