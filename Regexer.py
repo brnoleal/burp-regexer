@@ -737,44 +737,52 @@ except:
 
 
 REGEX_DICT = {
-    "URI Schemes": {
-        "regex": "[a-zA-Z0-9-]*://[a-zA-Z0-9?=&\[\]:%_./-]+",
+    "Path": {
         "description": "",
+        "regex": "['\"]/[a-zA-Z0-9/-_]+['\"]*"
     },
-    "AWS S3 URL":{
-        "regex": "https?://[a-zA-Z0-9-.]*s3.amazonaws.com[a-zA-Z0-9?=&\[\]:%_./-]*",
-        "description": ""
+    "AWS S3 URL": {
+        "description": "",
+        "regex": "https?://[a-zA-Z0-9-.]*s3.amazonaws.com[a-zA-Z0-9?=&\\[\\]:%_./-]*"
+    },
+    "URI Schemes": {
+        "description": "Extract all URI schemes.",
+        "regex": "[a-zA-Z0-9-]*://[a-zA-Z0-9?=&\\[\\]:%_./-]+"
     },
     "AWS Access Key": {
-        "regex": "AKIA[0-9A-Z]{16}",
-        "description": ""
+        "description": "",
+        "regex": "AKIA[0-9A-Z]{16}"
+    },
+    "Token": {
+        "description": "",
+        "regex": "token=[a-zA-Z0-9.+/]+"
     },
     "Google API": {
-        "regex": "AIza[0-9A-Za-z-_]{35}",
-        "description": ""
-    },
-    "RSA Key": {
-        "regex": "-----BEGIN RSA PRIVATE KEY-----|-----END RSA PRIVATE KEY-----",
-        "description": ""
-    },
-    "Private Key": {
-        "regex": "Private Key: -----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----",
-        "description": ""
-    },
-    "Email Adressess": {
-        "regex": "([a-zA-Z0-9_.+-]+@[a-zA-Z0-9]+[a-zA-Z0-9-]*\.[a-zA-Z0-9-.]*[a-zA-Z0-9]{2,})",
-        "description": ""
-    },
-    "Internal IP Adressess": {
-        "regex": "(((172|10)\.\d{1,3}\.\d{1,3}\.\d{1,3})|(192\.168\.\d{1,3}\.\d{1,3})|(10\.\d{1,3}\.\d{1,3}\.\d{1,3})|([fF][eE][89aAbBcCdDeEfF]::))",
-        "description": ""
+        "description": "",
+        "regex": "AIza[0-9A-Za-z-_]{35}"
     },
     "MD4/MD5": {
-        "regex": "([a-f0-9]{32})",
-        "description": ""
+        "description": "",
+        "regex": "([a-f0-9]{32})"
     },
     "HTML Comments": {
-        "regex": "(\<![\s]*--[\-!@#$%^&*:;.,\"'(){}\w\s\/\\[\]]*--[\s]*\>)",
-        "description": ""
+        "description": "",
+        "regex": "(\\<![\\s]*--[\\-!@#$%^&*:;.,\"'(){}\\w\\s\\/\\[\\]]*--[\\s]*\\>)"
+    },
+    "Private Key": {
+        "description": "",
+        "regex": "Private Key: -----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----"
+    },
+    "Email Adressess": {
+        "description": "",
+        "regex": "([a-zA-Z0-9_.+-]+@[a-zA-Z0-9]+[a-zA-Z0-9-]*\\.[a-zA-Z0-9-.]*[a-zA-Z0-9]{2,})"
+    },
+    "Internal IP Adressess": {
+        "description": "",
+        "regex": "(((172|10)\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})|(192\\.168\\.\\d{1,3}\\.\\d{1,3})|(10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})|([fF][eE][89aAbBcCdDeEfF]::))"
+    },
+    "RSA Key": {
+        "description": "",
+        "regex": "-----BEGIN RSA PRIVATE KEY-----|-----END RSA PRIVATE KEY-----"
     }
 }
