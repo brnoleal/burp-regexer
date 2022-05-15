@@ -2,6 +2,8 @@
 
 Burp extension to regex everything that you want.
 
+![Regexer image](regexer.png)
+
 ## Requirements
 
 You gonna need Jython (standalone version), which you can get at https://www.jython.org/download.html. For more information about how to install jython extensions in Burp visit: https://portswigger.net/support/how-to-install-an-extension-in-burp-suite

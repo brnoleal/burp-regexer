@@ -746,7 +746,7 @@ REGEX_DICT = {
         "regex": "https?://[a-zA-Z0-9-.]*s3.amazonaws.com[a-zA-Z0-9?=&\\[\\]:%_./-]*"
     },
     "URI Schemes": {
-        "description": "Extract all URI schemes.",
+        "description": "",
         "regex": "[a-zA-Z0-9-]*://[a-zA-Z0-9?=&\\[\\]:%_./-]+"
     },
     "AWS Access Key": {
