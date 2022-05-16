@@ -737,10 +737,6 @@ except:
 
 
 REGEX_DICT = {
-    "Paths": {
-        "description": "",
-        "regex": "['\"]/[a-zA-Z0-9/_-]+['\"]*"
-    },
     "AWS S3 URL": {
         "description": "",
         "regex": "https?://[a-zA-Z0-9-.]*s3.amazonaws.com[a-zA-Z0-9?=&\\[\\]:%_./-]*"
@@ -772,6 +768,10 @@ REGEX_DICT = {
     "Private Key": {
         "description": "",
         "regex": "Private Key: -----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----"
+    },
+    "Paths": {
+        "description": "",
+        "regex": "['\"]/[a-zA-Z0-9/_-]+['\"]*"
     },
     "Email Adressess": {
         "description": "",
