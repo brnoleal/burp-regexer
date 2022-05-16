@@ -737,9 +737,9 @@ except:
 
 
 REGEX_DICT = {
-    "Path": {
+    "Paths": {
         "description": "",
-        "regex": "['\"]/[a-zA-Z0-9/-_]+['\"]*"
+        "regex": "['\"]/[a-zA-Z0-9/_-]+['\"]*"
     },
     "AWS S3 URL": {
         "description": "",
