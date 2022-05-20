@@ -50,7 +50,7 @@ except ImportError:
 class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController, AbstractTableModel):
 
     def registerExtenderCallbacks(self, callbacks):
-        print("Regexer v1.0")
+        print("Regexer v1.1")
 
         self._callbacks = callbacks
         self._helpers = callbacks.getHelpers()
@@ -362,9 +362,20 @@ class Regexer(JFrame):
         regexerEdit.show()
 
     def handleJButtonRemove(self, event):
-        index = self.jTableRegex.getSelectedRow() 
+        index = self.jTableRegex.convertRowIndexToModel(self.jTableRegex.getSelectedRow())
         if(index != -1):
+            key = self.jTableRegex.getValueAt(index, 1)
             self.jTableRegex.removeRow(index)
+            REGEX_DICT[key]['logEntry'] = ArrayList()
+            REGEX_DICT[key]['valueMatched'] = []
+            self._extender._log = ArrayList()
+            self._extender._requestViewer.setMessage("None", True)
+            self._extender._responseViewer.setMessage("None", True)
+            self._extender._jTextAreaLineMatched.setText("None")
+            self._extender._jTextAreaValueMatched.setText("None")
+            self._extender._jTextAreaAllResults.setText("Select one rule from regex table to show it's results.")
+            self._extender._jTextAreaDetails.setText("Select one rule from regex table to show it's results.")
+            self.jTableEntry.getModel().fireTableDataChanged()
             JOptionPane.showMessageDialog(None, "Selected row successfully deleted!")
             try:
                 regexTableData = self.jTableRegex.getModel().getDataVector()
@@ -380,6 +391,15 @@ class Regexer(JFrame):
         index = self.jTableRegex.getSelectedRow() 
         if(index != -1):
             key = self.jTableRegex.getValueAt(index, 1)
+            regex = self.jTableRegex.getValueAt(index, 2)
+            details = '''
+                {} results found for this regex.\n
+                {} uniq results show in 'All Results' tab.\n
+                \nRule name: 
+                {}
+                \nRegex: 
+                {}
+            '''.format(0, 0, key, regex)
             if 'logEntry' in REGEX_DICT[key]:
                 REGEX_DICT[key]['logEntry'] = ArrayList()
                 REGEX_DICT[key]['valueMatched'] = []
@@ -388,6 +408,9 @@ class Regexer(JFrame):
                 self._extender._responseViewer.setMessage("None", True)
                 self._extender._jTextAreaLineMatched.setText("None")
                 self._extender._jTextAreaValueMatched.setText("None")
+                self._extender._jTextAreaAllResults.setText("No results found for '{}' regex.".format(key))
+                self._extender._jTextAreaDetails.setText("Select one rule from regex table to show it's results.") 
+                self._extender._jTextAreaDetails.setText(details) 
                 self.jTableEntry.getModel().fireTableDataChanged()
                 JOptionPane.showMessageDialog(None, "Entries and results successfully cleared!")
 
@@ -409,6 +432,18 @@ class Regexer(JFrame):
                 self._extender._responseViewer.setMessage(logEntry._requestResponse.getResponse(), True)
                 self._extender._jTextAreaLineMatched.setText("\n".join(str(line).encode("utf-8").strip() for line in logEntry._lineMatched))
                 self._extender._jTextAreaValueMatched.setText("\n".join(str(value).encode("utf-8").strip() for value in logEntry._valueMatched))
+                self._extender._jTextAreaAllResults.setText("\n".join(str(line).encode("utf-8").strip() for line in list(set(REGEX_DICT[key]['valueMatched']))))
+                length = len(REGEX_DICT[key]['valueMatched'])
+                uniq = len(list(set(REGEX_DICT[key]['valueMatched'])))
+                details = '''
+                {} results found for this regex.\n
+                {} uniq results show in 'All Results' tab.\n
+                \nRule name: 
+                {}
+                \nRegex: 
+                {}
+                '''.format(length, uniq, key, regex)
+                self._extender._jTextAreaDetails.setText(details)                
                 self._extender._currentlyDisplayedItem = logEntry._requestResponse       
             except:
                 self._extender._requestViewer.setMessage("None", True)
@@ -556,7 +591,7 @@ class RegexerEdit(JFrame):
                 self.updateRegexDict(key, regex, description)
                 self.dispose()
             elif self._event.source.text == "Edit":
-                index = self.jTableRegex.getSelectedRow()
+                index = self.jTableRegex.getRowSorter().convertRowIndexToModel(self.jTableRegex.getSelectedRow())
                 self.jTableRegex.setValueAt(key, index, 1)
                 self.jTableRegex.setValueAt(regex, index, 2)
                 self.jTableRegex.setValueAt(description, index, 3)
@@ -784,5 +819,29 @@ REGEX_DICT = {
     "RSA Key": {
         "description": "",
         "regex": "-----BEGIN RSA PRIVATE KEY-----|-----END RSA PRIVATE KEY-----"
+    },
+    "Top 25 Cross-Site Scripting (XSS) Parameters": {
+        "description": "",
+        "regex": "q=|s=|search=|id=|lang=|keyword=|query=|page=|keywords=|year=|view=|email=|type=|name=|p=|month=|image=|list_type=|url=|terms=|categoryid=|key=|l=|begindate=|enddate="
+    },
+    "Top 25 Server-Side Request Forgery (SSRF) Parameters": {
+        "description": "",
+        "regex": "dest=|redirect=|uri=|path=|continue=|url=|window=|next=|data=|reference=|site=|html=|val=|validate=|domain=|callback=|return=|page=|feed=|host=|port=|to=|out=|view=|dir="
+    },
+    "Top 25 Local File Inclusion (LFI) Parameters": {
+        "description": "",
+        "regex": "cat=|dir=|action|board=|date=|detail=|file=|download=|path|folder=|prefix=|include=|page=|inc=|locate=|show=|doc=|site=|type=|view=|content=|document=|layout=|mod=|conf="
+    },
+    "Top 25 SQL Injection Parameters": {
+        "description": "",
+        "regex": "id=|page=|report=|dir=|search=|category=|file=|class|url=|news=|item=|menu=|lang=|name=|ref=|title=|view=|topic=|thread=|type=|date=|form=|main=|nav=|region="
+    },
+    "Top 25 Remote Code Execution (RCE) Parameters": {
+        "description": "",
+        "regex": "cmd=|exec=|command=|execute=|ping=|query=|jump=|code|reg=|do=|func=|arg=|option=|load=|process=|step=|read=|feature=|exe=|module=|payload=|run=|print="
+    },
+    "Top 25 Open Redirect Parameters": {
+        "description": "",
+        "regex": "next=|url=|target=|rurl=|dest=|destination=|redir=|redirect_uri|redirect_url=|redirect=|out=|view=|to=|image_url=|go=|return=|returnTo=|return_to=|checkout_url=|continue=|return_path="
     }
 }
