@@ -66,15 +66,15 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self.regexTableColumns = ["#", "Enabled", "In Scope", "Rule Name", "Regex Rule", "Description"]
         self.regexTableData = []
         self.loadSaveLocalFile()
-        for key in REGEX_DICT.keys():
-            self.regexTableData.append([
-                len(self.regexTableData),
-                True,
-                False,
-                key,
-                REGEX_DICT[key]['regex'],
-                REGEX_DICT[key]['description'],
-            ])
+        # for key in REGEX_DICT.keys():
+        #     self.regexTableData.append([
+        #         len(self.regexTableData),
+        #         True,
+        #         False,
+        #         key,
+        #         REGEX_DICT[key]['regex'],
+        #         REGEX_DICT[key]['description'],
+        #     ])
         self._jTextAreaLineMatched = JTextArea()
         self._jTextAreaLineMatched.setEditable(False)
         
@@ -216,19 +216,23 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         else:
             print("Saving regex rules locally at {}...".format(self._filePath))
             for key in REGEX_DICT.keys():
-                self.regexTableData.append([
-                    len(self.regexTableData),
-                    True,
-                    False,
-                    key,
-                    REGEX_DICT[key]['regex'],
-                    REGEX_DICT[key]['description'],
-                ])
+                REGEX_DICT[key]['enabled'] = True
+                REGEX_DICT[key]['intarget'] = False
             try:
                 with open(self._filePath, "w") as file:
                     json.dump(REGEX_DICT, file)
             except Exception as e:
                 print("Something wrong while trying to save file. Error: {}".format(e))  
+
+        for key in REGEX_DICT.keys():
+            self.regexTableData.append([
+                len(self.regexTableData),
+                REGEX_DICT[key]['enabled'],
+                REGEX_DICT[key]['intarget'],
+                key,
+                REGEX_DICT[key]['regex'],
+                REGEX_DICT[key]['description'],
+            ])
 
     def getRowCount(self):
         try:
@@ -611,10 +615,10 @@ class RegexerEdit(JFrame):
                 self.dispose()
             
             try:
-                regexTableData = self.jTableRegex.getModel().getDataVector()
                 regexDict = {}
+                regexTableData = self.jTableRegex.getModel().getDataVector()
                 for regex in regexTableData:
-                    regexDict[regex[3]] = {"regex":regex[4], "description":regex[5]}
+                    regexDict[regex[3]] = {"enabled":regex[1], "intarget":regex[2], "regex":regex[4], "description":regex[5]}
                 with open(self._extender._filePath, "w") as file:
                     json.dump(regexDict, file)
             except Exception as e:
