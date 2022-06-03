@@ -692,14 +692,19 @@ class RegexTableMouseListener(MouseListener):
         regexTable = event.getSource()
         return regexTable.getModel().getDataVector().elementAt(regexTable.convertRowIndexToModel(regexTable.getSelectedRow()))
 
+    def getClickedColumn(self, event):
+        regexTable = event.getSource()
+        return regexTable.getSelectedColumn()
+
     def getClickedIndex(self, event):
         regexTable = event.getSource()
-        row = regexTable.convertRowIndexToModel(regexTable.getSelectedRow())
-        return regexTable.getValueAt(row, 0)
+        return regexTable.getValueAt(regexTable.convertRowIndexToModel(regexTable.getSelectedRow()), 0)
 
     def mouseClicked(self, event):
+        regexTable = event.getSource()
         key = self.getClickedRow(event)[3]
         regex = self.getClickedRow(event)[4]  
+        column = self.getClickedColumn(event)
         
         if 'logEntry' in REGEX_DICT[key]:
             self._extender._log = REGEX_DICT[key]['logEntry']
@@ -743,7 +748,19 @@ class RegexTableMouseListener(MouseListener):
                 '''.format(length, uniq, key, regex)
             self._extender._jTextAreaDetails.setText(details)
         except:
-            self._extender._jTextAreaDetails.setText("Select one rule from regex table to show it's results.")            
+            self._extender._jTextAreaDetails.setText("Select one rule from regex table to show it's results.")    
+
+        if column == 1 or column == 2:
+            try:
+                regexDict = {}
+                regexTableData = regexTable.getModel().getDataVector()
+                for regex in regexTableData:
+                    regexDict[regex[3]] = {"enabled":regex[1], "intarget":regex[2], "regex":regex[4], "description":regex[5]}
+                with open(self._extender._filePath, "w") as file:
+                    json.dump(regexDict, file)
+            except Exception as e:
+                print("Something wrong while trying to update file. Error: {}".format(e))   
+        
 
     def mousePressed(self, event):
         pass
