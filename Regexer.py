@@ -47,7 +47,7 @@ except ImportError:
 class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController, AbstractTableModel, IScopeChangeListener):
 
     def registerExtenderCallbacks(self, callbacks):
-        print("Regexer v1.1")
+        print("Regexer v1.2")
 
         self._callbacks = callbacks
         self._helpers = callbacks.getHelpers()
