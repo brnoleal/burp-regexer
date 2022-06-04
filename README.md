@@ -29,4 +29,5 @@ https://paramatter.art/
 
 - [x] Include Enable/Disable option for rules;
 - [x] Include option to process only items that match targets in Scope;
+- [ ] Include button to copy URIs that match regex.
 - [ ] Fix where to store regex locally in MacOs.
