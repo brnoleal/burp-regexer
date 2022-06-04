@@ -27,6 +27,6 @@ https://paramatter.art/
 
 ## TODO
 
-- [ ] Include Enable/Disable option for rules;
-- [ ] Include option to process only items that match targets in Scope;
+- [x] Include Enable/Disable option for rules;
+- [x] Include option to process only items that match targets in Scope;
 - [ ] Fix where to store regex locally in MacOs.
