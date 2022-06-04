@@ -452,6 +452,7 @@ class Regexer(JFrame):
                 self._extender._jTextAreaLineMatched.setText("\n".join(str(line).encode("utf-8").strip() for line in logEntry._lineMatched))
                 self._extender._jTextAreaValueMatched.setText("\n".join(str(value).encode("utf-8").strip() for value in logEntry._valueMatched))
                 self._extender._jTextAreaAllResults.setText("\n".join(str(line).encode("utf-8").strip() for line in list(set(REGEX_DICT[key]['valueMatched']))))
+                self._extender._currentlyDisplayedItem = logEntry._requestResponse                            
             except:
                 self._extender._requestViewer.setMessage("None", True)
                 self._extender._responseViewer.setMessage("None", True)
@@ -469,7 +470,6 @@ class Regexer(JFrame):
                 \nRegex: 
                 {}'''.format(length, uniq, key, regex)
             self._extender._jTextAreaDetails.setText(details)                
-            self._extender._currentlyDisplayedItem = logEntry._requestResponse                            
 
 class JTabbedPane2ChangeListener(ChangeListener):
     def __init__(self, extender, jTableRegex):
@@ -858,7 +858,7 @@ REGEX_DICT = {
     },
     "Internal IP Adressess": {
         "description": "",
-        "regex": "(((172|10)\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})|(192\\.168\\.\\d{1,3}\\.\\d{1,3})|(10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})|([fF][eE][89aAbBcCdDeEfF]::))"
+        "regex": "172\.[1-3]{1}\d{0,2}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|[fF][eE][89aAbBcCdDeEfF]::"
     },
     "RSA Key": {
         "description": "",
