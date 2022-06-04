@@ -6,15 +6,11 @@ from burp import ITab
 
 from java.lang import Boolean
 from java.lang import Integer
-from java.lang import Object
 from java.lang import Short
 from java.lang import String
 
-from javax.swing import BorderFactory
 from javax.swing import GroupLayout
 from javax.swing import LayoutStyle
-from javax.swing import WindowConstants
-from javax.swing import UnsupportedLookAndFeelException
 
 from javax.swing import JButton
 from javax.swing import JFrame
@@ -33,7 +29,6 @@ from javax.swing.table import AbstractTableModel
 
 from java.util import Arrays
 from java.util import ArrayList
-from java.awt import Color
 from java.awt.event import MouseListener
 from javax.swing.event import ChangeListener
 
@@ -150,7 +145,6 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
 
             inscope = regex.get(2)
             url = self._helpers.analyzeRequest(messageInfo).getUrl()
-            print("Enabled: {} - In Scope: {} - In Target: {}".format(enabled, inscope, self._callbacks.isInScope(url)))
             if inscope and not self._callbacks.isInScope(url):
                 continue
             
@@ -458,24 +452,24 @@ class Regexer(JFrame):
                 self._extender._jTextAreaLineMatched.setText("\n".join(str(line).encode("utf-8").strip() for line in logEntry._lineMatched))
                 self._extender._jTextAreaValueMatched.setText("\n".join(str(value).encode("utf-8").strip() for value in logEntry._valueMatched))
                 self._extender._jTextAreaAllResults.setText("\n".join(str(line).encode("utf-8").strip() for line in list(set(REGEX_DICT[key]['valueMatched']))))
-                length = len(REGEX_DICT[key]['valueMatched'])
-                uniq = len(list(set(REGEX_DICT[key]['valueMatched'])))
-                details = '''
-                {} results found for this regex.\n
-                {} uniq results show in 'All Results' tab.\n
-                \nRule name: 
-                {}
-                \nRegex: 
-                {}
-                '''.format(length, uniq, key, regex)
-                self._extender._jTextAreaDetails.setText(details)                
-                self._extender._currentlyDisplayedItem = logEntry._requestResponse       
             except:
                 self._extender._requestViewer.setMessage("None", True)
                 self._extender._responseViewer.setMessage("None", True)
                 self._extender._jTextAreaLineMatched.setText("None")
                 self._extender._jTextAreaValueMatched.setText("None")   
-                         
+                self._extender._jTextAreaAllResults.setText("No results found for '{}' regex.".format(key))
+
+            length = len(REGEX_DICT[key]['valueMatched'])
+            uniq = len(list(set(REGEX_DICT[key]['valueMatched'])))
+            details = '''
+                {} results found for this regex.\n
+                {} uniq results show in 'All Results' tab.\n
+                \nRule name: 
+                {}
+                \nRegex: 
+                {}'''.format(length, uniq, key, regex)
+            self._extender._jTextAreaDetails.setText(details)                
+            self._extender._currentlyDisplayedItem = logEntry._requestResponse                            
 
 class JTabbedPane2ChangeListener(ChangeListener):
     def __init__(self, extender, jTableRegex):
