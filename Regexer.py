@@ -1,6 +1,7 @@
 from burp import IBurpExtender
 from burp import IHttpListener
 from burp import IMessageEditorController
+from burp import IScopeChangeListener
 from burp import ITab
 
 from java.lang import Boolean
@@ -48,7 +49,7 @@ except ImportError:
     pass
 
 
-class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController, AbstractTableModel):
+class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController, AbstractTableModel, IScopeChangeListener):
 
     def registerExtenderCallbacks(self, callbacks):
         print("Regexer v1.1")
@@ -60,21 +61,13 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self._filePath = "" 
         sys.stdout = callbacks.getStdout()
 
-        self._requestViewer = self._callbacks.createMessageEditor(self, False)
-        self._responseViewer = self._callbacks.createMessageEditor(self, False)               
-
         self.regexTableColumns = ["#", "Enabled", "In Scope", "Rule Name", "Regex Rule", "Description"]
         self.regexTableData = []
         self.loadSaveLocalFile()
-        # for key in REGEX_DICT.keys():
-        #     self.regexTableData.append([
-        #         len(self.regexTableData),
-        #         True,
-        #         False,
-        #         key,
-        #         REGEX_DICT[key]['regex'],
-        #         REGEX_DICT[key]['description'],
-        #     ])
+
+        self._requestViewer = self._callbacks.createMessageEditor(self, False)
+        self._responseViewer = self._callbacks.createMessageEditor(self, False)               
+
         self._jTextAreaLineMatched = JTextArea()
         self._jTextAreaLineMatched.setEditable(False)
         
@@ -99,6 +92,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self._callbacks.setExtensionName("Regexer")
         self._callbacks.addSuiteTab(self)
         self._callbacks.registerHttpListener(self)        
+        self._callbacks.registerScopeChangeListener(self) 
         
         return
 
@@ -147,9 +141,19 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
             regexTableData = self._jTableRegex.getModel().getDataVector()
         else:
             regexTableData = ArrayList()
-            regexTableData.add(Arrays.asList(-1, True, False, regexUpdate['key'], regexUpdate['regex']))
-
+            regexTableData.add(Arrays.asList(-1, regexUpdate['enabled'], regexUpdate['inscope'], regexUpdate['key'], regexUpdate['regex']))
+        
         for regex in regexTableData:
+            enabled = regex.get(1)
+            if not enabled:
+                continue
+
+            inscope = regex.get(2)
+            url = self._helpers.analyzeRequest(messageInfo).getUrl()
+            print("Enabled: {} - In Scope: {} - In Target: {}".format(enabled, inscope, self._callbacks.isInScope(url)))
+            if inscope and not self._callbacks.isInScope(url):
+                continue
+            
             key = regex.get(3)
             regexPattern = regex.get(4)
             insertMessage = False
@@ -278,6 +282,9 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
 
     def getResponse(self):
         return self._currentlyDisplayedItem.getResponse()
+
+    def scopeChanged(self):        
+        return 
 
 
 class Regexer(JFrame):
@@ -433,12 +440,14 @@ class Regexer(JFrame):
     def handleJButtonUpdate(self, event):
         index = self.jTableRegex.getSelectedRow() 
         if(index != -1):
+            enabled = self.jTableRegex.getValueAt(index, 1)
+            inscope = self.jTableRegex.getValueAt(index, 2)
             key = self.jTableRegex.getValueAt(index, 3)
             regex = self.jTableRegex.getValueAt(index, 4)
             if 'logEntry' in REGEX_DICT[key]:
                 REGEX_DICT[key]['logEntry'] = ArrayList()
                 REGEX_DICT[key]['valueMatched'] = []  
-            self._extender.processProxyHistory({"key":key, "regex":regex})
+            self._extender.processProxyHistory({"enabled":enabled, "inscope":inscope, "key":key, "regex":regex})
             self._extender._log = REGEX_DICT[key]['logEntry']
             self.jTableEntry.getModel().fireTableDataChanged()
 
