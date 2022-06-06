@@ -598,9 +598,17 @@ class RegexerEdit(JFrame):
         key =  self.jTextFieldkey.getText()
         regex = self.jTextFieldRegex.getText()
         description = self.jTextFieldDescription.getText()
+        validRegex = False
         if key == "" or regex == "":
             JOptionPane.showMessageDialog(None, "Rule name and regex must not be empty!")
         else:
+            try:
+                re.compile(regex)
+                validRegex = True
+            except:
+                JOptionPane.showMessageDialog(None, "Invalid regex. Verify your rule!")
+
+        if  validRegex:
             if self._event.source.text == "Add":
                 try:
                     lastIndex = self.jTableRegex.getValueAt(self.jTableRegex.getRowCount()-1, 0)
