@@ -435,41 +435,42 @@ class Regexer(JFrame):
         index = self.jTableRegex.getSelectedRow() 
         if(index != -1):
             enabled = self.jTableRegex.getValueAt(index, 1)
-            inscope = self.jTableRegex.getValueAt(index, 2)
-            key = self.jTableRegex.getValueAt(index, 3)
-            regex = self.jTableRegex.getValueAt(index, 4)
-            if 'logEntry' in REGEX_DICT[key]:
-                REGEX_DICT[key]['logEntry'] = ArrayList()
-                REGEX_DICT[key]['valueMatched'] = []  
-            self._extender.processProxyHistory({"enabled":enabled, "inscope":inscope, "key":key, "regex":regex})
-            self._extender._log = REGEX_DICT[key]['logEntry']
-            self.jTableEntry.getModel().fireTableDataChanged()
+            if enabled:
+                inscope = self.jTableRegex.getValueAt(index, 2)
+                key = self.jTableRegex.getValueAt(index, 3)
+                regex = self.jTableRegex.getValueAt(index, 4)
+                if 'logEntry' in REGEX_DICT[key]:
+                    REGEX_DICT[key]['logEntry'] = ArrayList()
+                    REGEX_DICT[key]['valueMatched'] = []  
+                self._extender.processProxyHistory({"enabled":enabled, "inscope":inscope, "key":key, "regex":regex})
+                self._extender._log = REGEX_DICT[key]['logEntry']
+                self.jTableEntry.getModel().fireTableDataChanged()
 
-            try:
-                logEntry = self._extender._log.get(0)
-                self._extender._requestViewer.setMessage(logEntry._requestResponse.getRequest(), True)
-                self._extender._responseViewer.setMessage(logEntry._requestResponse.getResponse(), True)
-                self._extender._jTextAreaLineMatched.setText("\n".join(str(line).encode("utf-8").strip() for line in logEntry._lineMatched))
-                self._extender._jTextAreaValueMatched.setText("\n".join(str(value).encode("utf-8").strip() for value in logEntry._valueMatched))
-                self._extender._jTextAreaAllResults.setText("\n".join(str(line).encode("utf-8").strip() for line in list(set(REGEX_DICT[key]['valueMatched']))))
-                self._extender._currentlyDisplayedItem = logEntry._requestResponse                            
-            except:
-                self._extender._requestViewer.setMessage("None", True)
-                self._extender._responseViewer.setMessage("None", True)
-                self._extender._jTextAreaLineMatched.setText("None")
-                self._extender._jTextAreaValueMatched.setText("None")   
-                self._extender._jTextAreaAllResults.setText("No results found for '{}' regex.".format(key))
+                try:
+                    logEntry = self._extender._log.get(0)
+                    self._extender._requestViewer.setMessage(logEntry._requestResponse.getRequest(), True)
+                    self._extender._responseViewer.setMessage(logEntry._requestResponse.getResponse(), True)
+                    self._extender._jTextAreaLineMatched.setText("\n".join(str(line).encode("utf-8").strip() for line in logEntry._lineMatched))
+                    self._extender._jTextAreaValueMatched.setText("\n".join(str(value).encode("utf-8").strip() for value in logEntry._valueMatched))
+                    self._extender._jTextAreaAllResults.setText("\n".join(str(line).encode("utf-8").strip() for line in list(set(REGEX_DICT[key]['valueMatched']))))
+                    self._extender._currentlyDisplayedItem = logEntry._requestResponse                            
+                except:
+                    self._extender._requestViewer.setMessage("None", True)
+                    self._extender._responseViewer.setMessage("None", True)
+                    self._extender._jTextAreaLineMatched.setText("None")
+                    self._extender._jTextAreaValueMatched.setText("None")   
+                    self._extender._jTextAreaAllResults.setText("No results found for '{}' regex.".format(key))
 
-            length = len(REGEX_DICT[key]['valueMatched'])
-            uniq = len(list(set(REGEX_DICT[key]['valueMatched'])))
-            details = '''
-                {} results found for this regex.\n
-                {} uniq results show in 'All Results' tab.\n
-                \nRule name: 
-                {}
-                \nRegex: 
-                {}'''.format(length, uniq, key, regex)
-            self._extender._jTextAreaDetails.setText(details)                
+                length = len(REGEX_DICT[key]['valueMatched'])
+                uniq = len(list(set(REGEX_DICT[key]['valueMatched'])))
+                details = '''
+                    {} results found for this regex.\n
+                    {} uniq results show in 'All Results' tab.\n
+                    \nRule name: 
+                    {}
+                    \nRegex: 
+                    {}'''.format(length, uniq, key, regex)
+                self._extender._jTextAreaDetails.setText(details)                
 
 class JTabbedPane2ChangeListener(ChangeListener):
     def __init__(self, extender, jTableRegex):
