@@ -1,4 +1,5 @@
 from burp import IBurpExtender
+from burp import IExtensionStateListener
 from burp import IHttpListener
 from burp import IMessageEditorController
 from burp import IScopeChangeListener
@@ -44,7 +45,7 @@ except ImportError:
     pass
 
 
-class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController, AbstractTableModel, IScopeChangeListener):
+class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController, AbstractTableModel, IScopeChangeListener, IExtensionStateListener):
 
     def registerExtenderCallbacks(self, callbacks):
         print("Regexer v1.2")
@@ -88,7 +89,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self._callbacks.addSuiteTab(self)
         self._callbacks.registerHttpListener(self)        
         self._callbacks.registerScopeChangeListener(self) 
-        
+        self._callbacks.registerExtensionStateListener(self)
         return
 
     def getTabCaption(self):
@@ -279,6 +280,19 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
 
     def scopeChanged(self):        
         return 
+
+    def extensionUnloaded(self):
+        system = platform.system()
+        if system == "Java":
+            system = platform.java_ver()[3][0].split(" ")[0]
+        if "Windows" in system:
+            self._filePath = "C:\\WINDOWS\\Temp\\regexer-rules.json"
+        elif "Linux" in system:
+            self._filePath = "/tmp/regexer-rules.json" 
+        elif "Darwin" in system:
+            self._filePath = "~/Library/Caches/TemporaryItems/regexer-rules.json"        
+        if os.path.exists(self._filePath ):
+            os.remove(self._filePath)
 
 
 class Regexer(JFrame):
