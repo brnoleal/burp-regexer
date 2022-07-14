@@ -38,7 +38,8 @@ import os
 import sys
 import json
 import platform
-from threading import Lock
+import threading
+# from threading import Lock,Thread,enumerate
 try:
     from exceptions_fix import FixBurpExceptions
 except ImportError:
@@ -53,7 +54,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self._callbacks = callbacks
         self._helpers = callbacks.getHelpers()
         self._log = ArrayList()
-        self._lock = Lock()
+        self._lock = threading.Lock()
         self._filePath = "" 
         sys.stdout = callbacks.getStdout()
 
@@ -82,7 +83,7 @@ class BurpExtender(IBurpExtender, ITab, IHttpListener, IMessageEditorController,
         self._jTableRegex = RegexTable(self, self._jTableEntry)        
 
         print("Processing proxy history, please wait...")
-        self.processProxyHistory()
+        threading.Thread(target=self.processProxyHistory).start()
         print("Done!")
 
         self._callbacks.setExtensionName("Regexer")
@@ -456,35 +457,40 @@ class Regexer(JFrame):
                 if 'logEntry' in REGEX_DICT[key]:
                     REGEX_DICT[key]['logEntry'] = ArrayList()
                     REGEX_DICT[key]['valueMatched'] = []  
-                self._extender.processProxyHistory({"enabled":enabled, "inscope":inscope, "key":key, "regex":regex})
+                threading.Thread(target=self._extender.processProxyHistory, args=({"enabled":enabled, "inscope":inscope, "key":key, "regex":regex},)).start()
                 self._extender._log = REGEX_DICT[key]['logEntry']
                 self.jTableEntry.getModel().fireTableDataChanged()
+                threadAlive = True
+                while threadAlive:
+                    if len(threading.enumerate()) <= 1:
+                        threadAlive = False
 
-                try:
-                    logEntry = self._extender._log.get(0)
-                    self._extender._requestViewer.setMessage(logEntry._requestResponse.getRequest(), True)
-                    self._extender._responseViewer.setMessage(logEntry._requestResponse.getResponse(), True)
-                    self._extender._jTextAreaLineMatched.setText("\n".join(str(line).encode("utf-8").strip() for line in logEntry._lineMatched))
-                    self._extender._jTextAreaValueMatched.setText("\n".join(str(value).encode("utf-8").strip() for value in logEntry._valueMatched))
-                    self._extender._jTextAreaAllResults.setText("\n".join(str(line).encode("utf-8").strip() for line in list(set(REGEX_DICT[key]['valueMatched']))))
-                    self._extender._currentlyDisplayedItem = logEntry._requestResponse                            
-                except:
-                    self._extender._requestViewer.setMessage("None", True)
-                    self._extender._responseViewer.setMessage("None", True)
-                    self._extender._jTextAreaLineMatched.setText("None")
-                    self._extender._jTextAreaValueMatched.setText("None")   
-                    self._extender._jTextAreaAllResults.setText("No results found for '{}' regex.".format(key))
+                if not threadAlive:
+                    try:
+                        logEntry = self._extender._log.get(0)
+                        self._extender._requestViewer.setMessage(logEntry._requestResponse.getRequest(), True)
+                        self._extender._responseViewer.setMessage(logEntry._requestResponse.getResponse(), True)
+                        self._extender._jTextAreaLineMatched.setText("\n".join(str(line).encode("utf-8").strip() for line in logEntry._lineMatched))
+                        self._extender._jTextAreaValueMatched.setText("\n".join(str(value).encode("utf-8").strip() for value in logEntry._valueMatched))
+                        self._extender._jTextAreaAllResults.setText("\n".join(str(line).encode("utf-8").strip() for line in list(set(REGEX_DICT[key]['valueMatched']))))
+                        self._extender._currentlyDisplayedItem = logEntry._requestResponse                            
+                    except:
+                        self._extender._requestViewer.setMessage("None", True)
+                        self._extender._responseViewer.setMessage("None", True)
+                        self._extender._jTextAreaLineMatched.setText("None")
+                        self._extender._jTextAreaValueMatched.setText("None")   
+                        self._extender._jTextAreaAllResults.setText("No results found for '{}' regex.".format(key))
 
-                length = len(REGEX_DICT[key]['valueMatched'])
-                uniq = len(list(set(REGEX_DICT[key]['valueMatched'])))
-                details = '''
-                    {} results found for this regex.\n
-                    {} uniq results show in 'All Results' tab.\n
-                    \nRule name: 
-                    {}
-                    \nRegex: 
-                    {}'''.format(length, uniq, key, regex)
-                self._extender._jTextAreaDetails.setText(details)                
+                    length = len(REGEX_DICT[key]['valueMatched'])
+                    uniq = len(list(set(REGEX_DICT[key]['valueMatched'])))
+                    details = '''
+                        {} results found for this regex.\n
+                        {} uniq results show in 'All Results' tab.\n
+                        \nRule name: 
+                        {}
+                        \nRegex: 
+                        {}'''.format(length, uniq, key, regex)
+                    self._extender._jTextAreaDetails.setText(details)                
 
 class JTabbedPane2ChangeListener(ChangeListener):
     def __init__(self, extender, jTableRegex):
